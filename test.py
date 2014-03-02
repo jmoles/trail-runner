@@ -7,8 +7,11 @@ from PySide import QtCore, QtGui
 # PyQt doesn't support deriving from more than one wrapped class so we use
 # composition and delegate the property.
 class Pixmap(QtCore.QObject):
-    def __init__(self, pix):
+    def __init__(self, pix, window):
         super(Pixmap, self).__init__()
+
+        self.scene = window
+        self.visible = False
 
         self.pixmap_item = QtGui.QGraphicsPixmapItem(pix)
         self.pixmap_item.setCacheMode(QtGui.QGraphicsItem.DeviceCoordinateCache)
@@ -26,8 +29,20 @@ class Pixmap(QtCore.QObject):
     def get_rotate(self):
         return self.pixmap_item.rotation()
 
+    def get_vis(self):
+        return self.visible
+
+    def set_vis(self, visible):
+        if(visible and not self.visible):
+            self.scene.AddItem(self)
+            self.visible = True
+        elif(not visible and self.visible):
+            self.scene.RemoveItem(self)
+            self.visible = False
+
     pos = QtCore.Property(QtCore.QPointF, get_pos, set_pos)
     rotate = QtCore.Property(float, get_rotate, set_rotate)
+    vis = QtCore.Property(bool, get_vis, set_vis)
 
 class MainWindow(QtGui.QMainWindow):
     """ Our main window class
@@ -53,7 +68,7 @@ class MainWindow(QtGui.QMainWindow):
         view = QtGui.QGraphicsView()
         view.setWindowTitle("Ants")
         view.setViewportUpdateMode(QtGui.QGraphicsView.BoundingRectViewportUpdate)
-        view.setBackgroundBrush(QtGui.QPixmap("kitten.jpg"))
+        view.setBackgroundBrush(QtGui.QPixmap('images/kitten.jpg'))
         view.setCacheMode(QtGui.QGraphicsView.CacheBackground)
         view.setRenderHints(
             QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform)
@@ -66,7 +81,10 @@ class MainWindow(QtGui.QMainWindow):
         view.show()
 
     def AddItem(self, item):
-        self.scene.addItem(ant.pixmap_item)
+        self.scene.addItem(item.pixmap_item)
+
+    def RemoveItem(self, item):
+        self.scene.removeItem(item.pixmap_item)
 
     def buildGrid(self):
         # From http://www.topbug.net/blog/2013/01/10/load-a-matrix-from-an-ascii-format-file/
@@ -106,10 +124,22 @@ if __name__ == '__main__':
         myWindow = MainWindow()
         myWindow.CreateStatusBar()
         myWindow.SetupComponents()
+        myWindow.setWindowTitle("Ant Trail")
         myWindow.show()
+        
+        ants = []
+        ant0   = Pixmap(QtGui.QPixmap('images/ant_0.png'), myWindow)
+        ant90  = Pixmap(QtGui.QPixmap('images/ant_90.png'), myWindow)
+        ant180 = Pixmap(QtGui.QPixmap('images/ant_180.png'), myWindow)
+        ant270 = Pixmap(QtGui.QPixmap('images/ant_270.png'), myWindow)
 
-        ant = Pixmap(QtGui.QPixmap("images/ant_0.png"))
-        myWindow.AddItem(ant)
+        ants.append(ant0)
+        ants.append(ant90)
+        ants.append(ant180)
+        ants.append(ant270)
+
+        ant0.set_vis(True)
+
         rootState = QtCore.QState()
         state1 = QtCore.QState(rootState)
         state2 = QtCore.QState(rootState)
@@ -120,43 +150,68 @@ if __name__ == '__main__':
         state7 = QtCore.QState(rootState)
         state8 = QtCore.QState(rootState)
 
-        state1.assignProperty(ant, 'pos',
-            QtCore.QPointF(3*32, 4*32))
+        animGroup = QtCore.QParallelAnimationGroup()
+        for idx, this_ant in enumerate(ants):
+            state1.assignProperty(this_ant, 'pos',
+                QtCore.QPointF(3*32, 4*32))
 
-        state2.assignProperty(ant, 'pos',
-            QtCore.QPointF(3*32, 3*32))
+            state2.assignProperty(this_ant, 'pos',
+                QtCore.QPointF(3*32, 3*32))
 
-        state3.assignProperty(ant, 'pos',
-            QtCore.QPointF(3*32, 2*32))
+            state3.assignProperty(this_ant, 'pos',
+                QtCore.QPointF(3*32, 2*32))
 
-        state4.assignProperty(ant, 'pos',
-            QtCore.QPointF(3*32, 1*32))
+            state4.assignProperty(this_ant, 'pos',
+                QtCore.QPointF(3*32, 1*32))
 
-        state5.assignProperty(ant, 'rotate',
-            270)
+            state5.assignProperty(this_ant, 'pos',
+                QtCore.QPointF(3*32, 1*32))
 
-        # Had to move down a row because of rotation above messes up position.
-        state5.assignProperty(ant, 'pos',
-            QtCore.QPointF(3*32, 2*32))
+            state6.assignProperty(this_ant, 'pos',
+                QtCore.QPointF(2*32, 1*32))
 
-        state6.assignProperty(ant, 'pos',
-            QtCore.QPointF(2*32, 2*32))
+            state7.assignProperty(this_ant, 'pos',
+                QtCore.QPointF(1*32, 1*32))
 
-        state7.assignProperty(ant, 'pos',
-            QtCore.QPointF(1*32, 2*32))
+            state8.assignProperty(this_ant, 'pos',
+                QtCore.QPointF(0*32, 1*32))
 
-        state8.assignProperty(ant, 'pos',
-            QtCore.QPointF(0*32, 2*32))
+            if(idx == 0):
+                state1.assignProperty(this_ant, 'vis', True)
+                state2.assignProperty(this_ant, 'vis', True)
+                state3.assignProperty(this_ant, 'vis', True)
+                state4.assignProperty(this_ant, 'vis', True)
+                state5.assignProperty(this_ant, 'vis', False)
+                state6.assignProperty(this_ant, 'vis', False)
+                state7.assignProperty(this_ant, 'vis', False)
+                state8.assignProperty(this_ant, 'vis', False)
+            elif(idx == 3):
+                state1.assignProperty(this_ant, 'vis', False)
+                state2.assignProperty(this_ant, 'vis', False)
+                state3.assignProperty(this_ant, 'vis', False)
+                state4.assignProperty(this_ant, 'vis', False)
+                state5.assignProperty(this_ant, 'vis', True)
+                state6.assignProperty(this_ant, 'vis', True)
+                state7.assignProperty(this_ant, 'vis', True)
+                state8.assignProperty(this_ant, 'vis', True)
+            else:
+                state1.assignProperty(this_ant, 'vis', False)
+                state2.assignProperty(this_ant, 'vis', False)
+                state3.assignProperty(this_ant, 'vis', False)
+                state4.assignProperty(this_ant, 'vis', False)
+                state5.assignProperty(this_ant, 'vis', False)
+                state6.assignProperty(this_ant, 'vis', False)
+                state7.assignProperty(this_ant, 'vis', False)
+                state8.assignProperty(this_ant, 'vis', False)
+
+            anim = QtCore.QPropertyAnimation(this_ant, 'pos')
+            anim.setDuration(200)
+            animGroup.addAnimation(anim)
 
         states = QtCore.QStateMachine()
         states.addState(rootState)
         states.setInitialState(rootState)
         rootState.setInitialState(state1)
-
-        anim = QtCore.QPropertyAnimation(ant, "pos")
-        anim.setDuration(200)
-
-        states.addDefaultAnimation(anim)
 
         timer1 = QtCore.QTimer()
         timer1.setSingleShot(True)
@@ -182,14 +237,29 @@ if __name__ == '__main__':
         timer8 = QtCore.QTimer()
         timer8.setSingleShot(True)
         
-        rootState.addTransition(timer1.timeout, state1) 
-        rootState.addTransition(timer2.timeout, state2)
-        rootState.addTransition(timer3.timeout, state3)
-        rootState.addTransition(timer4.timeout, state4)
-        rootState.addTransition(timer5.timeout, state5)
-        rootState.addTransition(timer6.timeout, state6)
-        rootState.addTransition(timer7.timeout, state7)
-        rootState.addTransition(timer8.timeout, state8)
+        trans = rootState.addTransition(timer1.timeout, state1)
+        trans.addAnimation(animGroup) 
+
+        trans = rootState.addTransition(timer2.timeout, state2)
+        trans.addAnimation(animGroup) 
+
+        trans = rootState.addTransition(timer3.timeout, state3)
+        trans.addAnimation(animGroup) 
+
+        trans = rootState.addTransition(timer4.timeout, state4)
+        trans.addAnimation(animGroup)
+
+        trans = rootState.addTransition(timer5.timeout, state5)
+        trans.addAnimation(animGroup)
+
+        trans = rootState.addTransition(timer6.timeout, state6)
+        trans.addAnimation(animGroup)
+
+        trans = rootState.addTransition(timer7.timeout, state7)
+        trans.addAnimation(animGroup)
+
+        trans = rootState.addTransition(timer8.timeout, state8)
+        trans.addAnimation(animGroup)
 
         timer1.start(1000)
         timer2.start(2000)
@@ -200,7 +270,7 @@ if __name__ == '__main__':
         timer7.start(7000)
         timer8.start(8000)
 
-        states.start()      
+        states.start()
 
         sys.exit(myApp.exec_())
     except NameError:
