@@ -10,28 +10,25 @@ class GridVals:
     HIST  = 9  # The history of where the ant has been.
 
 class Communicate(QtCore.QObject):
-    
     msgToSB = QtCore.Signal(str)
 
 class Trail(QtGui.QFrame):
-    """ Our main window class
+    """ Trail class that is the central widget in the main window.
     """
     RECTANGLE_SIZE = 32
-    SPEED          = 1000
     ROTATE_ANGLE   = 90
     ROTATE_MAX     = 360 - 1
 
     # Constructor function
-    def __init__(self, parent):
+    def __init__(self, parent, configuration):
         super(Trail, self).__init__()
 
         # Read in the data grid
-        with open("trail7_6.dat", "r") as input_file:
-            file_content = input_file.read().strip()
-            file_content = file_content.replace('\r\n', ';')
-            file_content = file_content.replace('\n', ';')
-            file_content = file_content.replace('\r', ';')
-        self.data_matrix = np.matrix(file_content)
+        self.data_matrix = ()
+        self.loadGrid("trail7_6.dat")
+
+        # Set the ant's speed
+        self.speed = 1000
 
         # Find and set the ant's present position.
         self.curY, self.curX = np.where(self.data_matrix == 5)
@@ -54,7 +51,7 @@ class Trail(QtGui.QFrame):
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
         # Variable to control if keyboard works for mvoement or not.
-        self.keyboardMove = False
+        self.keyboardMove = True
 
         # Used to update the status bar
         self.c = Communicate()
@@ -63,14 +60,58 @@ class Trail(QtGui.QFrame):
         self.autoMoveStr = ""
         self.movePos     = 0
 
-    def start(self):
-        self.timer.start(Trail.SPEED, self)
+        # Set the sizing policy and margins
+        self.setSizePolicy(QtGui.QSizePolicy.Minimum,
+            QtGui.QSizePolicy.Minimum)
 
+        # Assign the configuration
+        self.conf = configuration
+
+    @QtCore.Slot(str)
+    def loadGrid(self, filename):
+        with open(filename, "r") as input_file:
+            file_content = input_file.read().strip()
+            file_content = file_content.replace('\r\n', ';')
+            file_content = file_content.replace('\n', ';')
+            file_content = file_content.replace('\r', ';')
+        self.data_matrix = np.matrix(file_content)
+
+    @QtCore.Slot(int)
+    def setAntSpeed(self, newSpeed):
+        self.speed = newSpeed
+        self.timer.stop()
+        self.timer.start(self.speed, self)
+
+    def sizeHint(self):
+        """Sets the size hint to preferrably two boxes larger than
+        the minimum size of the maze.
+        """
+        return QtCore.QSize((self.maxX + 3) * self.RECTANGLE_SIZE,
+            (self.maxY + 3) * self.RECTANGLE_SIZE)
+
+    def minimumSizeHint(self):
+        """Sets the minimum size hint to the exact dimensions 
+        of the maze.
+        """
+        return QtCore.QSize((self.maxX + 1) * self.RECTANGLE_SIZE,
+            (self.maxY + 1) * self.RECTANGLE_SIZE)
+        
     def queueAutoMove(self, strIn):
+        """Starts a series of autmoatic movments of ant passed a
+        string with the motions to perform.
+
+        Args:
+        strIn (str): Motions for ant to perform. Valid options are
+          * M - Move forward.
+          * L - Rotate ant left ROTATE_ANGLE degrees.
+          * R - Rotate ant right ROTATE_ANGLE degrees.
+        """
         self.autoMoveStr = strIn
-        self.start()
+        self.timer.start(self.speed, self)
 
     def moveForward(self):
+        """ Moves the ant forward a square relative to its current position.
+        """
         if self.rot == 0:
             self.moveUp()
         elif self.rot == 90:
@@ -81,21 +122,33 @@ class Trail(QtGui.QFrame):
             self.moveLeft()
 
     def leftRotate(self):
+        """ Rotates the ant ROTATE_ANGLE degrees left.
+        """
         self.rotateAnt(self.rot - self.ROTATE_ANGLE)
 
     def rightRotate(self):
+        """ Rotates the ant ROTATE_ANGLE degrees right.
+        """
         self.rotateAnt(self.rot + self.ROTATE_ANGLE)
 
     def moveUp(self):
+        """ Moves the ant up a square.
+        """
         self.moveAnt(self.curX, self.curY - 1)
 
     def moveDown(self):
+        """ Moves the ant down a square.
+        """
         self.moveAnt(self.curX, self.curY + 1)
 
     def moveRight(self):
+        """ Moves the ant right a square.
+        """
         self.moveAnt(self.curX + 1, self.curY)
 
     def moveLeft(self):
+        """ Moves the ant left a square.
+        """
         self.moveAnt(self.curX - 1, self.curY)
 
     def paintEvent(self, event):
@@ -229,8 +282,6 @@ class Trail(QtGui.QFrame):
             antpix = QtGui.QPixmap('images/ant_180.png')
         elif(self.rot == 270):
             antpix = QtGui.QPixmap('images/ant_270.png')
-
-
 
         painter.drawPixmap(x*self.RECTANGLE_SIZE, y*self.RECTANGLE_SIZE,
             antpix)
