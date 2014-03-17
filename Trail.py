@@ -15,20 +15,19 @@ class Communicate(QtCore.QObject):
 class Trail(QtGui.QFrame):
     """ Trail class that is the central widget in the main window.
     """
-    RECTANGLE_SIZE = 32
     ROTATE_ANGLE   = 90
     ROTATE_MAX     = 360 - 1
 
+    AGENT_DELTA_S  = "agent/move_delta"
+    RECT_SIZE_S    = "trail/grid_size"
+
     # Constructor function
-    def __init__(self, parent, configuration):
+    def __init__(self, parent):
         super(Trail, self).__init__()
 
         # Read in the data grid
         self.data_matrix = ()
-        self.loadGrid("trail7_6.dat")
-
-        # Set the ant's speed
-        self.speed = 1000
+        self.loadGrid("john_muir_32.dat")
 
         # Find and set the ant's present position.
         self.curY, self.curX = np.where(self.data_matrix == 5)
@@ -64,8 +63,12 @@ class Trail(QtGui.QFrame):
         self.setSizePolicy(QtGui.QSizePolicy.Minimum,
             QtGui.QSizePolicy.Minimum)
 
-        # Assign the configuration
-        self.conf = configuration
+        # Used to get to settings
+        self.settings = QtCore.QSettings()
+
+        # Define some settings if they aren't defined
+        if not self.settings.contains(self.RECT_SIZE_S):
+            self.settings.setValue(self.RECT_SIZE_S, 16)
 
     @QtCore.Slot(str)
     def loadGrid(self, filename):
@@ -78,23 +81,25 @@ class Trail(QtGui.QFrame):
 
     @QtCore.Slot(int)
     def setAntSpeed(self, newSpeed):
-        self.speed = newSpeed
+        self.settings.setValue(self.AGENT_DELTA_S, newSpeed)
         self.timer.stop()
-        self.timer.start(self.speed, self)
+        self.timer.start(self.settings.value(self.AGENT_DELTA_S), self)
 
     def sizeHint(self):
         """Sets the size hint to preferrably two boxes larger than
         the minimum size of the maze.
         """
-        return QtCore.QSize((self.maxX + 3) * self.RECTANGLE_SIZE,
-            (self.maxY + 3) * self.RECTANGLE_SIZE)
+        return QtCore.QSize((self.maxX + 3) * 
+            self.settings.value(self.RECT_SIZE_S),
+            (self.maxY + 3) * self.settings.value(self.RECT_SIZE_S))
 
     def minimumSizeHint(self):
         """Sets the minimum size hint to the exact dimensions 
         of the maze.
         """
-        return QtCore.QSize((self.maxX + 1) * self.RECTANGLE_SIZE,
-            (self.maxY + 1) * self.RECTANGLE_SIZE)
+        return QtCore.QSize((self.maxX + 1) * 
+            self.settings.value(self.RECT_SIZE_S),
+            (self.maxY + 1) * self.settings.value(self.RECT_SIZE_S))
         
     def queueAutoMove(self, strIn):
         """Starts a series of autmoatic movments of ant passed a
@@ -107,7 +112,7 @@ class Trail(QtGui.QFrame):
           * R - Rotate ant right ROTATE_ANGLE degrees.
         """
         self.autoMoveStr = strIn
-        self.timer.start(self.speed, self)
+        self.timer.start(self.settings.value(self.AGENT_DELTA_S, 1000), self)
 
     def moveForward(self):
         """ Moves the ant forward a square relative to its current position.
@@ -215,8 +220,10 @@ class Trail(QtGui.QFrame):
         brush = QtGui.QBrush(colors[fill])
         painter.setBrush(brush)
 
-        painter.drawRect(x * self.RECTANGLE_SIZE, y * self.RECTANGLE_SIZE, 
-            self.RECTANGLE_SIZE, self.RECTANGLE_SIZE)
+        painter.drawRect(x * self.settings.value(self.RECT_SIZE_S), 
+            y * self.settings.value(self.RECT_SIZE_S), 
+            self.settings.value(self.RECT_SIZE_S),
+            self.settings.value(self.RECT_SIZE_S))
 
         # If this box needs to contain food, draw it.
         if fill == GridVals.FOOD:
@@ -230,9 +237,10 @@ class Trail(QtGui.QFrame):
         painter.setPen(pen)
 
         # Draw the circle centered in box with radius of 1/4 the circle
-        center = QtCore.QPointF(self.RECTANGLE_SIZE * (x + 0.5),
-            self.RECTANGLE_SIZE * (y + 0.5))
-        radius = self.RECTANGLE_SIZE / 4
+        center = QtCore.QPointF(
+            self.settings.value(self.RECT_SIZE_S) * (x + 0.5),
+            self.settings.value(self.RECT_SIZE_S) * (y + 0.5))
+        radius = self.settings.value(self.RECT_SIZE_S) / 4
         painter.drawEllipse(center, radius, radius)
 
     def moveAnt(self, newX, newY):
@@ -254,7 +262,8 @@ class Trail(QtGui.QFrame):
 
         # Check if the ant consumed food at new position.
         if self.data_matrix[self.curY, self.curX] > 0:
-            self.data_matrix[self.curY, self.curX] = 0
+            self.data_matrix[self.curY, self.curX] = (
+                self.data_matrix[self.curY, self.curX])
 
         self.update()
 
@@ -275,15 +284,20 @@ class Trail(QtGui.QFrame):
         antpix = ()
 
         if(self.rot == 0):
-            antpix = QtGui.QPixmap('images/ant_0.png')
+            antpix = QtGui.QPixmap('images/agent16_0.png')
         elif(self.rot == 90):
-            antpix = QtGui.QPixmap('images/ant_90.png')
+            antpix = QtGui.QPixmap('images/agent16_90.png')
         elif(self.rot == 180):
-            antpix = QtGui.QPixmap('images/ant_180.png')
+            antpix = QtGui.QPixmap('images/agent16_180.png')
         elif(self.rot == 270):
-            antpix = QtGui.QPixmap('images/ant_270.png')
+            antpix = QtGui.QPixmap('images/agent16_270.png')
 
-        painter.drawPixmap(x*self.RECTANGLE_SIZE, y*self.RECTANGLE_SIZE,
+        # Scale the pixmap to match size.
+        antpix = antpix.scaledToHeight(self.settings.value(self.RECT_SIZE_S))
+        antpix = antpix.scaledToWidth(self.settings.value(self.RECT_SIZE_S))
+
+        painter.drawPixmap(x*self.settings.value(self.RECT_SIZE_S),
+            y*self.settings.value(self.RECT_SIZE_S),
             antpix)
 
 
