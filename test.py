@@ -43,8 +43,8 @@ class GAApplication(QtGui.QMainWindow):
         # Connect the signals and slots
         self.connectSigSlot()
 
-        
-        self.antTrail.queueAutoMove("RMMMMMMMMMMRMMMMMMMMMMRMMMMMMMRMMMMMLMMMMMMMMMMMLMMMMMMRMMMMMML")
+        self.antTrail.queueAutoMove("R")
+
 
     def writeSettings(self):
         self.settings.beginGroup("MainWindow")
