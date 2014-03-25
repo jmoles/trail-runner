@@ -17,21 +17,21 @@ class AgentTrail:
     """
     # Constants
     ROTATE_ANGLE = 90
-    ROTATE_MAX   = 360
+    ROTATE_MAX   = 360 - 1
 
     def __init__(self):
         # Properties of the trail
-        self.__data_matrix  = ()
-        self.__rotation     = 0
-        self.__trail_name   = ""
-        self.__maxX         = 0
-        self.__maxY         = 0
+        self.__data_matrix   = ()
+        self.__rotation      = 0
+        self.__trail_name    = ""
+        self.__maxX          = 0
+        self.__maxY          = 0
 
         # Properties of the agent
-        self.__currAgent    = GridVals.ANT0
-        self.__currX        = 0
-        self.__currY        = 0
-        self.__foodConsumed = 0
+        self.__curr_agent    = GridVals.ANT0
+        self.__currX         = 0
+        self.__currY         = 0
+        self.__food_consumed = 0
 
 
     def readTrail(self, filename):
@@ -57,9 +57,10 @@ class AgentTrail:
         # Determine the ant's current type and position
         self.__updateAgentRotType()
 
-        self.__currY, self.__currX = np.where(self.__data_matrix == self.__currAgent)
-        self.__currY = self.__currY.item(0)
-        self.__currX = self.__currX.item(0)
+        # TODO: Add some robustness here in handling invalid data files.
+        currPos = np.where(self.__data_matrix == self.__curr_agent)
+        self.__currY = currPos[0].item(0)
+        self.__currX = currPos[1].item(0)
 
     def moveForward(self):
         """ Moves the agent forward a square relative to its current position.
@@ -90,7 +91,7 @@ class AgentTrail:
         Returns:
             int. Amount of food consumed.
         """
-        return self.__foodConsumed
+        return self.__food_consumed
 
     def isFoodAhead(self):
         """ Determines if there is food in front of the agent.
@@ -110,6 +111,18 @@ class AgentTrail:
         np.set_printoptions(threshold='nan')
         print self.__data_matrix
 
+    def getTrailDim(self):
+        """ Get the dimenions of the current trail.
+
+        Returns:
+            list. X, Y size of the current trail.
+        """
+        maxY, maxX = self.__data_matrix.shape
+
+        return (maxX, maxY)
+
+    def getMatrix(self):
+        return self.__data_matrix
 
     def __squareAhead(self):
         """ Determines the square in front of the agent based off present position.
@@ -185,14 +198,14 @@ class AgentTrail:
         # Check if the ant consumed food at the new spot
         if (self.__data_matrix[self.__currY, self.__currX] == GridVals.FOOD or 
             self.__data_matrix[self.__currY, self.__currX] == GridVals.END):
-            self.__foodConsumed = self.__foodConsumed + 1
+            self.__food_consumed = self.__food_consumed + 1
             self.__data_matrix[self.__currY, self.__currX] = GridVals.EMPTY
         else:
             self.__data_matrix[self.__currY, self.__currX] = (
                 self.__data_matrix[self.__currY, self.__currX])
         
         # Set agent to this position.
-        self.__data_matrix[self.__currY, self.__currX] = self.__currAgent
+        self.__data_matrix[self.__currY, self.__currX] = self.__curr_agent
 
 
 
@@ -211,13 +224,15 @@ class AgentTrail:
 
     def __updateAgentRotType(self):
         if (self.__rotation == 0):
-            self.__currAgent = GridVals.ANT0
+            self.__curr_agent = GridVals.ANT0
         elif(self.__rotation == 90):
-            self.__currAgent = GridVals.ANT90
+            self.__curr_agent = GridVals.ANT90
         elif(self.__rotation == 180):
-            self.__currAgent = GridVals.ANT180
+            self.__curr_agent = GridVals.ANT180
         elif(self.__rotation == 270):
-            self.__currAgent = GridVals.ANT270
+            self.__curr_agent = GridVals.ANT270
+
+        self.__data_matrix[self.__currY, self.__currX] = self.__curr_agent
 
     def __roundAngle(self, x, base=ROTATE_ANGLE):
         return int(base * round(float(x) / base))
