@@ -26,12 +26,14 @@ class AgentTrail:
         self.__trail_name    = ""
         self.__maxX          = 0
         self.__maxY          = 0
+        self.__food_total    = 0
 
         # Properties of the agent
         self.__curr_agent    = GridVals.ANT0
         self.__currX         = 0
         self.__currY         = 0
         self.__food_consumed = 0
+        self.__num_moves     = 0
 
 
     def readTrail(self, filename):
@@ -49,6 +51,7 @@ class AgentTrail:
         self.__data_matrix = np.matrix(trail)
         self.__rotation    = yaml_in["init_rot"]
         self.__trail_name  = yaml_in["name"]
+        self.__food_total  = np.where(self.__data_matrix == GridVals.FOOD)[0].size
 
         self.__maxY, self.__maxX = self.__data_matrix.shape
         self.__maxX            = self.__maxX - 1
@@ -74,16 +77,22 @@ class AgentTrail:
         elif self.__rotation == 270:
             self.__moveLeft()
 
+        self.__num_moves = self.__num_moves + 1
+
     def turnLeft(self):
         """ Rotates the agent 90 degrees left.
         """
         self.__rotateAgent(self.__rotation - self.ROTATE_ANGLE)
+
+        self.__num_moves = self.__num_moves + 1
 
 
     def turnRight(self):
         """ Rotates the agent 90 degrees right.
         """
         self.__rotateAgent(self.__rotation + self.ROTATE_ANGLE)
+
+        self.__num_moves = self.__num_moves + 1
 
     def getFoodConsumed(self):
         """ Returns the amount of food consumed.
@@ -123,6 +132,22 @@ class AgentTrail:
 
     def getMatrix(self):
         return self.__data_matrix
+
+    def getNumMoves(self):
+        """ Returns the number of moves the agent has made.
+
+        Returns:
+            int. Number of moves that agent has made.
+        """
+        return self.__num_moves
+
+    def getFoodStats(self):
+        """ Returns the current statistics on the agent's food.
+
+        Returns:
+            list. Food consumed (int), food remaining (int)
+        """
+        return (self.__food_consumed, self.__food_total - self.__food_consumed)
 
     def __squareAhead(self):
         """ Determines the square in front of the agent based off present position.

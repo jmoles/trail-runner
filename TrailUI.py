@@ -3,6 +3,25 @@ import numpy as np
 from PySide import QtCore, QtGui
 from AgentTrail import AgentTrail, GridVals
 
+
+class Solarized():
+    BASE03  = QtGui.QColor("#002b36")
+    BASE02  = QtGui.QColor("#073642")
+    BASE01  = QtGui.QColor("#586e75")
+    BASE00  = QtGui.QColor("#657b83")
+    BASE0   = QtGui.QColor("#839496")
+    BASE1   = QtGui.QColor("#93a1a1")
+    BASE2   = QtGui.QColor("#eee8d5")
+    BASE3   = QtGui.QColor("#fdf6e3")
+    YELLOW  = QtGui.QColor("#b58900")
+    ORANGE  = QtGui.QColor("#cb4b16")
+    RED     = QtGui.QColor("#dc322f")
+    MAGENTA = QtGui.QColor("#d33682")
+    VIOLET  = QtGui.QColor("#6c71c4")
+    BLUE    = QtGui.QColor("#268bd2")
+    CYAN    = QtGui.QColor("#2aa198")
+    GREEN   = QtGui.QColor("#859900")
+
 class Communicate(QtCore.QObject):
     msgToSB = QtCore.Signal(str)
 
@@ -115,10 +134,19 @@ class TrailUI(QtGui.QFrame):
         self.timer.start(self.settings.value(self.AGENT_DELTA_S, 1000), self)
 
     def paintEvent(self, event):
-        painter = QtGui.QPainter(self)
-
         # Get the grid from AgentTrail
         data_matrix = self.agent_trail.getMatrix()
+
+        # Determine the extents and add a padding square
+        self.maxY, self.maxX = self.agent_trail.getTrailDim()
+
+        painter = QtGui.QPainter(self)
+        painter.translate(self.settings.value(self.RECT_SIZE_S),
+            self.settings.value(self.RECT_SIZE_S))
+        painter.fillRect(0, 0,
+            (self.maxX + 2) * self.settings.value(self.RECT_SIZE_S),
+            (self.maxY + 2) * self.settings.value(self.RECT_SIZE_S),
+            QtGui.QBrush(Solarized.BASE3))
 
         # Paint the grid
         for x in range(data_matrix.shape[1]):
@@ -139,6 +167,8 @@ class TrailUI(QtGui.QFrame):
             if self.movePos >= len(self.autoMoveStr):
                 self.c.msgToSB.emit("Routine Finished")
                 self.timer.stop()
+
+            self.__updateStatusBar()
 
             self.update()
 
@@ -162,29 +192,45 @@ class TrailUI(QtGui.QFrame):
         else:
             QtGui.QWidget.keyPressEvent(self, event)
 
+        self.__updateStatusBar()
+
         self.update()
 
+    def __updateStatusBar(self):
+        # Gather information
+        moves = self.agent_trail.getNumMoves()
+        foodl = self.agent_trail.getFoodStats()
+
+        sbSendMessage = ("Moves: " + str(moves) + 
+            " Food Consumed / Remaining / Total: " + 
+            str(foodl[0]) + " / " + str(foodl[1]) + " / " +
+            str(foodl[0] + foodl[1]))
+
+        # Display information
+        self.c.msgToSB.emit(sbSendMessage)
+
     def __drawBox(self, painter, x, y, fill):
+        painter.save()
         colors = {}
-        colors[GridVals.EMPTY]   = QtGui.QColor(0,0,0,0)
-        colors[GridVals.FOOD]    = QtGui.QColor(0,0,255,128)
-        colors[GridVals.ANT0]    = QtGui.QColor(0,255,0,255)
+        colors[GridVals.EMPTY]   = Solarized.BASE3
+        colors[GridVals.FOOD]    = Solarized.BLUE
+        colors[GridVals.ANT0]    = Solarized.BASE1
         colors[GridVals.ANT90]   = colors[GridVals.ANT0]
         colors[GridVals.ANT180]  = colors[GridVals.ANT0]
         colors[GridVals.ANT270]  = colors[GridVals.ANT0]
-        colors[GridVals.OPT]     = QtGui.QColor(0,0,255,64)
+        colors[GridVals.OPT]     = Solarized.CYAN
         colors[GridVals.END]     = QtGui.QColor(255,0,0,128)
-        colors[GridVals.HIST]    = QtGui.QColor(255,153,204,128)
+        colors[GridVals.HIST]    = Solarized.BASE0
 
-        brush = QtGui.QBrush(colors[fill])
-        painter.setBrush(brush)
+        painter.setPen(QtGui.QPen(Solarized.BASE03))
+        painter.setBrush(QtGui.QBrush(colors[fill]))
 
         painter.drawRect(x * self.settings.value(self.RECT_SIZE_S), 
             y * self.settings.value(self.RECT_SIZE_S), 
             self.settings.value(self.RECT_SIZE_S),
             self.settings.value(self.RECT_SIZE_S))
 
-        # If this box needs to contain food, draw it.
+        # If this box needs to contain food,soa draw it.
         if fill == GridVals.FOOD:
             self.__drawFood(painter, x, y)
 
@@ -193,12 +239,14 @@ class TrailUI(QtGui.QFrame):
             fill == GridVals.ANT90 or
             fill == GridVals.ANT180 or
             fill == GridVals.ANT270):
-            self.__drawAnt(painter, x, y, fill)
+            self.__drawAgent(painter, x, y, fill)
+
+        painter.restore()
 
     def __drawFood(self, painter, x, y):
         painter.save()
         # Set up the brush and pen for circle and then draw it.
-        brush = QtGui.QBrush(QtGui.QColor(255,255,0,255))
+        brush = QtGui.QBrush(Solarized.YELLOW)
         pen   = QtGui.QPen(QtGui.QColor(0,0,0,255))
         painter.setBrush(brush)
         painter.setPen(pen)
@@ -211,7 +259,7 @@ class TrailUI(QtGui.QFrame):
         painter.drawEllipse(center, radius, radius)
         painter.restore()
 
-    def __drawAnt(self, painter, x, y, fill):
+    def __drawAgent(self, painter, x, y, fill):
         # Save the current state of the painter
         painter.save()
 
@@ -244,8 +292,8 @@ class TrailUI(QtGui.QFrame):
             painter.translate(-sqSize, 0)
 
         # Actually paint the shape now.
-        painter.setPen(QtGui.QPen(QtGui.QColor(0,0,0,255)))
-        painter.fillPath(triPath, QtGui.QBrush(QtGui.QColor("black")))
+        painter.setPen(QtGui.QPen(Solarized.ORANGE))
+        painter.fillPath(triPath, QtGui.QBrush(Solarized.ORANGE))
         
         painter.restore()
 
