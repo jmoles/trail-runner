@@ -8,7 +8,7 @@ from AgentTrail import AgentTrail
 
 NUM_MOVES = 250
 POP_SIZE  = 300
-NGEN      = 20
+NGEN      = 200
 
 # Configure DEAP
 creator.create("FitnessMax", base.Fitness, weights=(100.0,))
@@ -17,7 +17,7 @@ creator.create("Individual", list, fitness=creator.FitnessMax)
 def runMaze(individual):
     an = AgentNetwork()
     at = AgentTrail()
-    at.readTrail("john_muir_32.yaml")
+    at.readTrail("trails/john_muir_32.yaml")
 
     an.network._setParameters(individual)
 
@@ -41,8 +41,6 @@ if __name__ == '__main__':
     toolbox = base.Toolbox()
     toolbox.register("map", futures.map)
 
-
-
     toolbox.register("attr_float", random.uniform, a=-5, b=5)
     toolbox.register("individual", tools.initRepeat, creator.Individual,
         toolbox.attr_float, n=len(an.network.params))
@@ -61,7 +59,7 @@ if __name__ == '__main__':
     # Print the best network
     an = AgentNetwork()
     at = AgentTrail()
-    at.readTrail("john_muir_32.yaml")
+    at.readTrail("trails/john_muir_32.yaml")
 
     an.network._setParameters(tools.selBest(pop, k=1)[0])
 
