@@ -7,6 +7,8 @@ from deap import algorithms, base, creator, tools
 
 from TrailUI import TrailUI
 from AgentGA import AgentGA
+from AgentNetwork import AgentNetwork
+from AgentTrail import AgentTrail
 
 class Communicate(QtCore.QObject):
     newFile  = QtCore.Signal(str)
@@ -163,6 +165,8 @@ class GAApplication(QtGui.QMainWindow):
         # Connect signal/slot for the status bar
         self.c.newProg[int].connect(self.progress_bar.setValue)
 
+        self.ga_thread.c.newIndividual[list].connect(self.__runAgentSlot)
+
     def openFile(self):
         self.antTrail.pause()
         filename, _ = QtGui.QFileDialog.getOpenFileName(self,
@@ -204,4 +208,34 @@ class GAApplication(QtGui.QMainWindow):
 
     def __resetGADock(self):
         print "This would reset menu."
+
+    def __runAgentSlot(self, individual):
+        """ Runs the agent through the maze on the GUI with a provided individual.
+
+        Args:
+        individual (list): List of float weights used for activation network.
+        """
+        an    = AgentNetwork()
+        at    = AgentTrail()
+        moves = ""
+
+        at.readTrail(self.filename)
+
+        an.network._setParameters(individual)
+
+        for _ in xrange(self.moves):
+            currMove = an.determineMove(at.isFoodAhead())
+
+            if(currMove == 1):
+                # Turn Left
+                moves = moves + "L"
+            elif(currMove == 2):
+                # Turn Right
+                moves = moves + "R"
+            elif(currMove == 3):
+                # Move Forward
+                moves = moves + "M"
+
+        self.antTrail.queueAutoMove(moves)
+
 

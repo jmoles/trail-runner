@@ -1,5 +1,6 @@
 from deap import algorithms, base, creator, tools
 import numpy as np
+import os.path
 import pickle
 import random
 import timeit
@@ -13,11 +14,13 @@ creator.create("FitnessMax", base.Fitness, weights=(100.0,))
 creator.create("Individual", list, fitness=creator.FitnessMax)
 
 class Communicate(QtCore.QObject):
-    newProg = QtCore.Signal(int)
+    newProg       = QtCore.Signal(int)
+    newIndividual = QtCore.Signal(list)
 
 class AgentGA(QtCore.QThread):
 
     CHECKPOINT = "checkpoint.pkl"
+    PICKLE_VER = 1
 
     def __init__(self, bar=None):
         super(AgentGA, self).__init__()
@@ -42,7 +45,8 @@ class AgentGA(QtCore.QThread):
 
         self.bar        = bar
 
-        self.abort      = False
+        # Variable to indicate if the loop should continue running.
+        self.__abort      = False
 
         # Connect the signal/slot for the progress bar
         self.c.newProg[int].connect(self.bar.setValue)
@@ -54,10 +58,11 @@ class AgentGA(QtCore.QThread):
         self.gens       = gens
 
     def run(self):
-        self.__runMaze()
+        self.__abort = False
+        self.__runMaze(AgentGA.CHECKPOINT)
 
     def stop(self):
-        self.abort = True
+        self.__abort = True
         self.wait()
 
     def __initToolbox(self):
@@ -74,20 +79,30 @@ class AgentGA(QtCore.QThread):
 
 
     def __runMaze(self, checkpoint=None):
-        if checkpoint:
+        pickleread = False
+
+        # TODO: Pickling needs to check paramters for maze too before accepting
+        # the use of pickled data.
+        if checkpoint and os.path.isfile(checkpoint):
             # A file name has been given, then load the data from the file
-            cp = pickle.load(open(checkpoint, "r"))
-            population = cp["population"]
-            start_gen = cp["generation"]
-            halloffame = cp["halloffame"]
-            logbook = cp["logbook"]
-            random.setstate(cp["rndstate"])
-        else:
+            cp         = pickle.load(open(checkpoint, "r"))
+            version    = cp["version"]
+
+            if version == AgentGA.PICKLE_VER:
+                population = cp["population"]
+                start_gen  = cp["generation"]
+                halloffame = cp["halloffame"]
+                logbook    = cp["logbook"]
+                random.setstate(cp["rndstate"])
+                pickleread = True
+
+        if not pickleread:
             # Start a new evolution
             population = self.toolbox.population(n=self.pop_size)
-            start_gen = 0
+            start_gen  = 0
             halloffame = tools.HallOfFame(maxsize=1)
-            logbook = tools.Logbook()
+            logbook    = tools.Logbook()
+            version    = AgentGA.PICKLE_VER 
 
         stats = tools.Statistics(lambda ind: ind.fitness.values)
         stats.register("avg", np.mean)
@@ -110,19 +125,20 @@ class AgentGA(QtCore.QThread):
 
             self.curr_gen = gen
 
-            if gen % 5 == 0:
+            if gen % 1 == 0:
                 # Fill the dictionary using the dict(key=value[, ...]) constructor
                 cp = dict(population=population, generation=gen, halloffame=halloffame,
-                          logbook=logbook, rndstate=random.getstate())
+                          logbook=logbook, rndstate=random.getstate(), version=version)
                 pickle.dump(cp, open(AgentGA.CHECKPOINT, "w"))
 
             print str(int((float(gen + 1) / float(self.gens)) * 100))
             self.c.newProg.emit(int((float(gen + 1) / float(self.gens)) * 100))
 
-            if(self.abort):
+            if(self.__abort):
                 break
 
         print(tools.selBest(population, k=1)[0])
+        self.c.newIndividual.emit(tools.selBest(population, k=1)[0])
 
 
     def __singleMazeTask(self, individual):

@@ -102,7 +102,7 @@ class TrailUI(QtGui.QFrame):
         self.timer.stop()
 
     def resume(self):
-        self.timer.start(self.settings.value(self.AGENT_DELTA_S, 1000), self)
+        self.timer.start(self.settings.value(self.AGENT_DELTA_S, 100), self)
 
     def sizeHint(self):
         """Sets the size hint to preferrably two boxes larger than
@@ -131,7 +131,7 @@ class TrailUI(QtGui.QFrame):
           * R - Rotate ant right 90 degrees.
         """
         self.autoMoveStr = strIn
-        self.timer.start(self.settings.value(self.AGENT_DELTA_S, 1000), self)
+        self.timer.start(self.settings.value(self.AGENT_DELTA_S, 100), self)
 
     def paintEvent(self, event):
         # Get the grid from AgentTrail
