@@ -28,14 +28,16 @@ class GAApplication(QtGui.QMainWindow):
 
         # Variables
         self.filename = "trails/john_muir_32.yaml"
-        self.moves    = self.settings.value("moves", 250)
+        self.moves    = self.settings.value("moves", 350)
         self.pop_size = self.settings.value("population", 300)
         self.gens     = self.settings.value("generations", 200)
+        self.auto_run = self.settings.value("auto_run", 30)
 
         # UI Elements
         self.moves_box    = ()
         self.pop_box      = ()
         self.gen_box      = ()
+        self.auto_run_box = ()
         self.run_button   = ()
         self.reset_button = ()
         self.progress_bar = ()
@@ -92,12 +94,12 @@ class GAApplication(QtGui.QMainWindow):
         QtGui.QMainWindow.closeEvent(self, event)
 
     def createActions(self):
-        self.openTrailAct = QtGui.QAction("&Open Trail...", self, shortcut="Ctrl+O",
-            triggered = self.openFile)
-        self.exitAct = QtGui.QAction("&Quit", self, triggered=self.close)      
+        self.openTrailAct = QtGui.QAction("&Open Trail...", self,
+            shortcut="Ctrl+O", triggered = self.openFile)
+        self.exitAct = QtGui.QAction("&Quit", self, triggered=self.close)
         self.gatoolsAct = QtGui.QAction("GA Toolbox", self, checkable = True)
-        
-    def createMenus(self): 
+
+    def createMenus(self):
         self.fileMenu = self.menuBar().addMenu("&File")
         self.fileMenu.addAction(self.openTrailAct)
         self.fileMenu.addAction(self.exitAct)
@@ -111,7 +113,7 @@ class GAApplication(QtGui.QMainWindow):
         # Build each of the spin boxes.
         self.moves_box    = QtGui.QSpinBox()
         self.moves_box.setRange(1, 1000)
-        self.moves_box.setValue(self.settings.value("moves", 250))
+        self.moves_box.setValue(self.settings.value("moves", 350))
         self.moves_box.setToolTip("The maixmum number of moves that the agent can make in the maze.")
 
         self.pop_box      = QtGui.QSpinBox()
@@ -122,6 +124,10 @@ class GAApplication(QtGui.QMainWindow):
         self.gen_box.setRange(1, 1000)
         self.gen_box.setValue(self.settings.value("generations", 200))
         self.gen_box.setToolTip("The number of generations to run the optimization for.")
+
+        self.auto_run_box = QtGui.QSpinBox()
+        self.auto_run_box.setRange(1, self.gen_box.maximum())
+        self.auto_run_box.setValue(self.settings.value("auto_run", 30))
 
         self.run_button   = QtGui.QPushButton("Run")
         self.run_button.clicked.connect(self.__runGA)
@@ -136,6 +142,7 @@ class GAApplication(QtGui.QMainWindow):
         layout.addRow(QtGui.QLabel("Moves"), self.moves_box)
         layout.addRow(QtGui.QLabel("Population"), self.pop_box)
         layout.addRow(QtGui.QLabel("Generations"), self.gen_box)
+        layout.addRow(QtGui.QLabel("Auto Run"), self.auto_run_box)
         layout.addRow(self.run_button, self.reset_button)
         layout.addRow(self.progress_bar)
         layout.addRow(QtGui.QLabel("Current Generation"), self.gen_label)
@@ -171,7 +178,8 @@ class GAApplication(QtGui.QMainWindow):
     def openFile(self):
         self.antTrail.pause()
         filename, _ = QtGui.QFileDialog.getOpenFileName(self,
-            str("Open Trail File"), "./trails", str("Trail Files (*.yml *.yaml)"))
+            str("Open Trail File"), "./trails",
+            str("Trail Files (*.yml *.yaml)"))
 
         if filename != "":
             self.c.newFile.emit(filename)
@@ -189,11 +197,13 @@ class GAApplication(QtGui.QMainWindow):
             self.moves      = self.moves_box.value()
             self.pop_size   = self.pop_box.value()
             self.gens       = self.gen_box.value()
+            self.auto_run   = self.auto_run_box.value()
 
             self.ga_thread.setVars(self.filename,
                 self.moves,
                 self.pop_size,
-                self.gens)
+                self.gens,
+                self.auto_run)
             self.ga_thread.start()
         else:
             self.ga_thread.stop()
@@ -206,7 +216,7 @@ class GAApplication(QtGui.QMainWindow):
     def __setRunTerminated(self):
         self.run_button.setText("Start")
         self.reset_button.setDisabled(False)
-        
+
     def __setRunStarted(self):
         self.run_button.setText("Stop")
         self.reset_button.setDisabled(True)
@@ -235,11 +245,16 @@ class GAApplication(QtGui.QMainWindow):
             # First, check if all food was consumed,
             # if so, break.
             if at.getFoodStats()[1] == 0:
+                print "All food consumed!"
                 break
 
             currMove = an.determineMove(at.isFoodAhead())
 
-            if(currMove == 1):
+            if(currMove == 0):
+                # No operation
+                moves = moves + "N"
+                at.noMove()
+            elif(currMove == 1):
                 # Turn Left
                 moves = moves + "L"
                 at.turnLeft()
@@ -251,6 +266,7 @@ class GAApplication(QtGui.QMainWindow):
                 # Move Forward
                 moves = moves + "M"
                 at.moveForward()
+
 
         self.antTrail.loadGrid(self.filename)
         self.antTrail.queueAutoMove(moves)

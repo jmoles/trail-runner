@@ -17,6 +17,7 @@ class AgentGA(QtCore.QThread):
         self.moves      = 0
         self.pop_size   = 0
         self.gens       = 0
+        self.auto_run   = 0
 
         # Communicate class
         self.c          = Communicate()
@@ -39,11 +40,12 @@ class AgentGA(QtCore.QThread):
             self.proc.kill()
             self.proc.wait()
 
-    def setVars(self, filename, moves, pop, gens):
+    def setVars(self, filename, moves, pop, gens, auto_run):
         self.filename   = filename
         self.moves      = moves
         self.pop_size   = pop
         self.gens       = gens
+        self.auto_run   = auto_run
 
     def run(self):
         self.mutex.lock()
@@ -102,7 +104,8 @@ class AgentGA(QtCore.QThread):
                     print "Processing complete!"
                     break
                 else:
-                    if json_data["current_generation"] % 20 == 0:
+                    if (json_data["current_generation"] %
+                            self.auto_run == 0):
                         self.c.newIndividual.emit(json_data["top_dog"])
             else:
                 print "Something is wrong with the JSON data."

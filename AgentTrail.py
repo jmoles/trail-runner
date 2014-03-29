@@ -94,6 +94,11 @@ class AgentTrail:
 
         self.__num_moves = self.__num_moves + 1
 
+    def noMove(self):
+        """ Does not move the agent. Just increments the number of moves taken.
+        """
+        self.__num_moves = self.__num_moves + 1
+
     def getFoodConsumed(self):
         """ Returns the amount of food consumed.
 

@@ -159,7 +159,9 @@ class TrailUI(QtGui.QFrame):
 
     def timerEvent(self, event):
         if event.timerId() == self.timer.timerId():
-            if self.autoMoveStr[self.movePos] == "M":
+            if self.autoMoveStr[self.movePos] == "N":
+                self.agent_trail.noMove()
+            elif self.autoMoveStr[self.movePos] == "M":
                 self.agent_trail.moveForward()
             elif self.autoMoveStr[self.movePos] == "L":
                 self.agent_trail.turnLeft()
