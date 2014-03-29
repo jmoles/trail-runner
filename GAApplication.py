@@ -231,6 +231,12 @@ class GAApplication(QtGui.QMainWindow):
         an.network._setParameters(individual)
 
         for _ in xrange(self.moves):
+
+            # First, check if all food was consumed,
+            # if so, break.
+            if at.getFoodStats()[1] == 0:
+                break
+
             currMove = an.determineMove(at.isFoodAhead())
 
             if(currMove == 1):
