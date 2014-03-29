@@ -1,55 +1,44 @@
-from deap import algorithms, base, creator, tools
-import numpy as np
-import os.path
+import json
+import os
 import pickle
-import random
-import timeit
+import re
+import subprocess
+import zmq
 from PySide import QtCore, QtGui
-
-from AgentNetwork import AgentNetwork
-from AgentTrail import AgentTrail
-
-# Configure DEAP
-creator.create("FitnessMax", base.Fitness, weights=(100.0,))
-creator.create("Individual", list, fitness=creator.FitnessMax)
 
 class Communicate(QtCore.QObject):
     newProg       = QtCore.Signal(int)
     newIndividual = QtCore.Signal(list)
+    newGen        = QtCore.Signal(str)
 
 class AgentGA(QtCore.QThread):
 
     CHECKPOINT = "checkpoint.pkl"
     PICKLE_VER = 1
 
-    def __init__(self, bar=None):
+    def __init__(self, bar=None, gen_label=None):
         super(AgentGA, self).__init__()
-
-        self.an         = AgentNetwork()
-
-        self.toolbox    = base.Toolbox()
-
         self.filename   = ""
         self.moves      = 0
         self.pop_size   = 0
         self.gens       = 0
 
-        # Current generation evaluation is on.
-        self.curr_gen   = 0
-
-        # Set up the toolbox.
-        self.__initToolbox()
-
         # Communicate class
         self.c          = Communicate()
 
         self.bar        = bar
-
-        # Variable to indicate if the loop should continue running.
-        self.__abort      = False
+        self.gen_label  = gen_label
 
         # Connect the signal/slot for the progress bar
         self.c.newProg[int].connect(self.bar.setValue)
+        self.c.newGen[str].connect(self.gen_label.setText)
+
+        self.proc       = ()
+
+    def __exit__(self):
+        if self.proc:
+            self.proc.kill()
+            self.proc.wait()
 
     def setVars(self, filename, moves, pop, gens):
         self.filename   = filename
@@ -62,101 +51,67 @@ class AgentGA(QtCore.QThread):
         self.__runMaze(AgentGA.CHECKPOINT)
 
     def stop(self):
-        self.__abort = True
-        self.wait()
+        if self.proc:
+            self.proc.kill()
+            self.proc.wait()
 
-    def __initToolbox(self):
-        self.toolbox.register("attr_float", random.uniform, a=-5, b=5)
-        self.toolbox.register("individual", tools.initRepeat, creator.Individual,
-            self.toolbox.attr_float, n=len(self.an.network.params))
-        self.toolbox.register("population", tools.initRepeat, list,
-            self.toolbox.individual)
+    def __parseMessage(self, message):
+        match     = re.search('tcp://\*:9854 : (.*)', message)
 
-        self.toolbox.register("evaluate", self.__singleMazeTask)
-        self.toolbox.register("mate", tools.cxTwoPoint)
-        self.toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
-        self.toolbox.register("select", tools.selTournament, tournsize=3)
-
+        if match:
+            return json.loads(match.group(1))
+        else:
+            return None
 
     def __runMaze(self, checkpoint=None):
-        pickleread = False
+        # self.proc = subprocess.Popen(["python", "-m", "scoop", "-n", "2",
+        #     "ga_runner.py",
+        #     "-g", str(self.gens),
+        #     "-p", str(self.pop_size),
+        #     "-m", str(self.moves)], stdout=subprocess.PIPE)
 
-        # TODO: Pickling needs to check paramters for maze too before accepting
-        # the use of pickled data.
-        if checkpoint and os.path.isfile(checkpoint):
-            # A file name has been given, then load the data from the file
-            cp         = pickle.load(open(checkpoint, "r"))
-            version    = cp["version"]
+        cmd_list = []
+        cmd_list.append("python")
+        cmd_list.extend(["-m", "scoop"])
+        cmd_list.extend(["--hosts", "home-remote"])
+        cmd_list.extend(["-p", "/home/josh/Dropbox/GitHub/jmoles/python/"])
+        cmd_list.extend(["-n", "8"])
+        cmd_list.extend(["--python-interpreter", "/usr/bin/python"])
+        cmd_list.append("ga_runner.py")
+        cmd_list.extend(["-g", str(self.gens)])
+        cmd_list.extend(["-p", str(self.pop_size)])
+        cmd_list.extend(["-m", str(self.moves)])
+        self.proc = subprocess.Popen(cmd_list, stdout=subprocess.PIPE)
 
-            if version == AgentGA.PICKLE_VER:
-                population = cp["population"]
-                start_gen  = cp["generation"]
-                halloffame = cp["halloffame"]
-                logbook    = cp["logbook"]
-                random.setstate(cp["rndstate"])
-                pickleread = True
+        # Use ZMQ to collect information from process.
+        HOST    = "tcp://puma.joshmoles.com:9854"
+        context = zmq.Context()
+        sock    = context.socket(zmq.SUB)
+        sock.setsockopt(zmq.SUBSCRIBE, '')
 
-        if not pickleread:
-            # Start a new evolution
-            population = self.toolbox.population(n=self.pop_size)
-            start_gen  = 0
-            halloffame = tools.HallOfFame(maxsize=1)
-            logbook    = tools.Logbook()
-            version    = AgentGA.PICKLE_VER 
+        sock.connect(HOST)
 
-        stats = tools.Statistics(lambda ind: ind.fitness.values)
-        stats.register("avg", np.mean)
-        stats.register("max", np.max)
+        while True:
+            message = sock.recv()
+            json_data = self.__parseMessage(message)
 
-        for gen in range(start_gen, self.gens):
-            population = algorithms.varAnd(population, self.toolbox, cxpb=0.5, mutpb=0.2)
-
-            # Evaluate the individuals with an invalid fitness
-            invalid_ind = [ind for ind in population if not ind.fitness.valid]
-            fitnesses = self.toolbox.map(self.toolbox.evaluate, invalid_ind)
-            for ind, fit in zip(invalid_ind, fitnesses):
-                ind.fitness.values = fit
-
-            halloffame.update(population)
-            record = stats.compile(population)
-            logbook.record(gen=gen, evals=len(invalid_ind), **record)
-
-            population = self.toolbox.select(population, k=len(population))
-
-            self.curr_gen = gen
-
-            if gen % 1 == 0:
-                # Fill the dictionary using the dict(key=value[, ...]) constructor
-                cp = dict(population=population, generation=gen, halloffame=halloffame,
-                          logbook=logbook, rndstate=random.getstate(), version=version)
-                pickle.dump(cp, open(AgentGA.CHECKPOINT, "w"))
-
-            print str(int((float(gen + 1) / float(self.gens)) * 100))
-            self.c.newProg.emit(int((float(gen + 1) / float(self.gens)) * 100))
-
-            if(self.__abort):
-                break
-
-        print(tools.selBest(population, k=1)[0])
-        self.c.newIndividual.emit(tools.selBest(population, k=1)[0])
+            if json_data:
+                self.c.newProg.emit(json_data["progress_percent"])
+                self.c.newGen.emit(str(json_data["current_generation"]))
+                if json_data["done"]:
+                    self.c.newIndividual.emit(json_data["top_dog"])
+                    print "Processing complete!"
+                    break
+                else:
+                    if json_data["current_generation"] % 20 == 0:
+                        self.c.newIndividual.emit(json_data["top_dog"])
+            else:
+                print "Something is wrong with the JSON data."
 
 
-    def __singleMazeTask(self, individual):
-        an = AgentNetwork()
-        at = AgentTrail()
-        at.readTrail("trails/john_muir_32.yaml")
 
-        an.network._setParameters(individual)
 
-        for _ in xrange(self.moves):
-            currMove = an.determineMove(at.isFoodAhead())
 
-            if(currMove == 1):
-                at.turnLeft()
-            elif(currMove == 2):
-                at.turnRight()
-            elif(currMove == 3):
-                at.moveForward()
 
-        return (at.getFoodConsumed(),)
+
 

@@ -50,6 +50,8 @@ class GAApplication(QtGui.QMainWindow):
 
         # Get the handle to the statusbar.
         self.statusbar = self.statusBar()
+        self.gen_label = QtGui.QLabel("0")
+        self.gen_label.setAlignment(QtCore.Qt.AlignLeft)
 
         # Create actions
         self.createActions()
@@ -61,14 +63,12 @@ class GAApplication(QtGui.QMainWindow):
         self.createDocks()
 
         # Set up the thread to run Genetic Algorithms
-        self.ga_thread  = AgentGA(self.progress_bar)
+        self.ga_thread  = AgentGA(self.progress_bar, self.gen_label)
 
         # Connect the signals and slots
         self.connectSigSlot()
 
         self.setCentralWidget(self.antTrail)
-
-        # self.antTrail.queueAutoMove("MMMMMMMMMMRMMMMMMMMMMRMMMLMMM")
 
     def __exit__(self):
         self.ga_thread.stop()
@@ -138,6 +138,7 @@ class GAApplication(QtGui.QMainWindow):
         layout.addRow(QtGui.QLabel("Generations"), self.gen_box)
         layout.addRow(self.run_button, self.reset_button)
         layout.addRow(self.progress_bar)
+        layout.addRow(QtGui.QLabel("Current Generation"), self.gen_label)
 
         content = QtGui.QWidget()
         content.setLayout(layout)
@@ -159,7 +160,7 @@ class GAApplication(QtGui.QMainWindow):
 
         # Connect the signal/slot for the events when thread starts or stops.
         self.ga_thread.started.connect(self.__setRunStarted)
-        self.ga_thread.terminated.connect(self.__setRunFinished)
+        self.ga_thread.terminated.connect(self.__setRunTerminated)
         self.ga_thread.finished.connect(self.__setRunFinished)
 
         # Connect signal/slot for the status bar
@@ -174,6 +175,7 @@ class GAApplication(QtGui.QMainWindow):
 
         if filename != "":
             self.c.newFile.emit(filename)
+            self.filename = filename
         else:
             # Menu was cancelled. Just resume
             self.antTrail.resume()
@@ -199,7 +201,11 @@ class GAApplication(QtGui.QMainWindow):
     def __setRunFinished(self):
         self.run_button.setText("Start")
         self.reset_button.setDisabled(False)
-        self.c.newProg.emit(0)
+        self.c.newProg.emit(100)
+
+    def __setRunTerminated(self):
+        self.run_button.setText("Start")
+        self.reset_button.setDisabled(False)
         
     def __setRunStarted(self):
         self.run_button.setText("Stop")
@@ -209,6 +215,7 @@ class GAApplication(QtGui.QMainWindow):
     def __resetGADock(self):
         print "This would reset menu."
 
+    @QtCore.Slot(list)
     def __runAgentSlot(self, individual):
         """ Runs the agent through the maze on the GUI with a provided individual.
 
@@ -229,13 +236,17 @@ class GAApplication(QtGui.QMainWindow):
             if(currMove == 1):
                 # Turn Left
                 moves = moves + "L"
+                at.turnLeft()
             elif(currMove == 2):
                 # Turn Right
                 moves = moves + "R"
+                at.turnRight()
             elif(currMove == 3):
                 # Move Forward
                 moves = moves + "M"
+                at.moveForward()
 
+        self.antTrail.loadGrid(self.filename)
         self.antTrail.queueAutoMove(moves)
 
 

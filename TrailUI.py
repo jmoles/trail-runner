@@ -77,6 +77,8 @@ class TrailUI(QtGui.QFrame):
         if not self.settings.contains(self.RECT_SIZE_S):
             self.settings.setValue(self.RECT_SIZE_S, 16)
 
+        self.__last_filename = ""
+
     @QtCore.Slot(str)
     def loadGrid(self, filename):
         self.pause()
@@ -84,6 +86,7 @@ class TrailUI(QtGui.QFrame):
 
         self.agent_trail = AgentTrail()
         self.agent_trail.readTrail(filename)
+        self.__last_filename = filename
 
         # Update the maximums
         self.maxY, self.maxX = self.agent_trail.getTrailDim()
@@ -102,7 +105,7 @@ class TrailUI(QtGui.QFrame):
         self.timer.stop()
 
     def resume(self):
-        self.timer.start(self.settings.value(self.AGENT_DELTA_S, 100), self)
+        self.timer.start(self.settings.value(self.AGENT_DELTA_S, 50), self)
 
     def sizeHint(self):
         """Sets the size hint to preferrably two boxes larger than
@@ -131,7 +134,8 @@ class TrailUI(QtGui.QFrame):
           * R - Rotate ant right 90 degrees.
         """
         self.autoMoveStr = strIn
-        self.timer.start(self.settings.value(self.AGENT_DELTA_S, 100), self)
+        self.movePos     = 0
+        self.timer.start(self.settings.value(self.AGENT_DELTA_S, 50), self)
 
     def paintEvent(self, event):
         # Get the grid from AgentTrail

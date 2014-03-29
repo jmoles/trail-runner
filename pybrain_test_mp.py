@@ -8,20 +8,25 @@ from AgentTrail import AgentTrail
 
 NUM_MOVES = 250
 POP_SIZE  = 300
-NGEN      = 200
+NGEN      = 20
 
 # Configure DEAP
-creator.create("FitnessMax", base.Fitness, weights=(100.0,))
-creator.create("Individual", list, fitness=creator.FitnessMax)
+creator.create("FitnessMulti", base.Fitness, weights=(1,-1))
+creator.create("Individual", list, fitness=creator.FitnessMulti)
 
 def runMaze(individual):
     an = AgentNetwork()
     at = AgentTrail()
     at.readTrail("trails/john_muir_32.yaml")
 
+    num_moves = 0
+
     an.network._setParameters(individual)
 
     for _ in xrange(NUM_MOVES):
+        if at.getFoodStats()[1] == 0:
+            break
+
         currMove = an.determineMove(at.isFoodAhead())
 
         if(currMove == 1):
@@ -31,7 +36,9 @@ def runMaze(individual):
         elif(currMove == 3):
             at.moveForward()
 
-    return (at.getFoodConsumed(),)
+        num_moves = num_moves + 1
+
+    return (at.getFoodConsumed(), num_moves)
 
 if __name__ == '__main__':
     start = timeit.default_timer()
@@ -48,7 +55,7 @@ if __name__ == '__main__':
         toolbox.individual)
 
     toolbox.register("evaluate", runMaze)
-    toolbox.register("mate", tools.cxTwoPoints)
+    toolbox.register("mate", tools.cxTwoPoint)
     toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
     toolbox.register("select", tools.selTournament, tournsize=3)
 
