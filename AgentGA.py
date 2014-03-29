@@ -4,6 +4,7 @@ import pickle
 import re
 import subprocess
 import zmq
+from zmq import ssh
 from PySide import QtCore, QtGui
 
 class Communicate(QtCore.QObject):
@@ -52,8 +53,11 @@ class AgentGA(QtCore.QThread):
 
     def stop(self):
         if self.proc:
+            print "Attempting to kill subprocess."
             self.proc.kill()
             self.proc.wait()
+            print self.proc
+            print "Subprocess killed!"
 
     def __parseMessage(self, message):
         match     = re.search('tcp://\*:9854 : (.*)', message)
@@ -70,6 +74,10 @@ class AgentGA(QtCore.QThread):
         #     "-p", str(self.pop_size),
         #     "-m", str(self.moves)], stdout=subprocess.PIPE)
 
+        # Set up a ZMQ to send informaton to each of the processes.
+        HOST_RUN = "tcp://*:9855"
+
+
         cmd_list = []
         cmd_list.append("python")
         cmd_list.extend(["-m", "scoop"])
@@ -81,15 +89,14 @@ class AgentGA(QtCore.QThread):
         cmd_list.extend(["-g", str(self.gens)])
         cmd_list.extend(["-p", str(self.pop_size)])
         cmd_list.extend(["-m", str(self.moves)])
-        self.proc = subprocess.Popen(cmd_list, stdout=subprocess.PIPE)
+        self.proc = subprocess.Popen(cmd_list)
 
         # Use ZMQ to collect information from process.
         HOST    = "tcp://puma.joshmoles.com:9854"
         context = zmq.Context()
         sock    = context.socket(zmq.SUB)
         sock.setsockopt(zmq.SUBSCRIBE, '')
-
-        sock.connect(HOST)
+        zmq.ssh.tunnel.tunnel_connection(sock, HOST, "puma.joshmoles.com:7862")
 
         while True:
             message = sock.recv()
