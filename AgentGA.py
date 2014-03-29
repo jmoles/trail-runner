@@ -1,7 +1,4 @@
 import json
-import os
-import pickle
-import re
 import subprocess
 import zmq
 from zmq import ssh
@@ -13,9 +10,6 @@ class Communicate(QtCore.QObject):
     newGen        = QtCore.Signal(str)
 
 class AgentGA(QtCore.QThread):
-
-    CHECKPOINT = "checkpoint.pkl"
-    PICKLE_VER = 1
 
     def __init__(self, bar=None, gen_label=None):
         super(AgentGA, self).__init__()
@@ -36,6 +30,10 @@ class AgentGA(QtCore.QThread):
 
         self.proc       = ()
 
+        # Variable to say if processing should run
+        self.__abort    = False
+        self.mutex      = QtCore.QMutex()
+
     def __exit__(self):
         if self.proc:
             self.proc.kill()
@@ -48,26 +46,20 @@ class AgentGA(QtCore.QThread):
         self.gens       = gens
 
     def run(self):
+        self.mutex.lock()
         self.__abort = False
-        self.__runMaze(AgentGA.CHECKPOINT)
+        self.mutex.unlock()
+        self.__runMaze()
 
     def stop(self):
-        if self.proc:
-            print "Attempting to kill subprocess."
-            self.proc.kill()
-            self.proc.wait()
-            print self.proc
-            print "Subprocess killed!"
+        self.mutex.lock()
+        self.__abort = True
+        self.mutex.unlock()
 
     def __parseMessage(self, message):
-        match     = re.search('tcp://\*:9854 : (.*)', message)
+        return json.loads(message)
 
-        if match:
-            return json.loads(match.group(1))
-        else:
-            return None
-
-    def __runMaze(self, checkpoint=None):
+    def __runMaze(self):
         # self.proc = subprocess.Popen(["python", "-m", "scoop", "-n", "2",
         #     "ga_runner.py",
         #     "-g", str(self.gens),
@@ -77,12 +69,14 @@ class AgentGA(QtCore.QThread):
         # Set up a ZMQ to send informaton to each of the processes.
         HOST_RUN = "tcp://*:9855"
 
-
         cmd_list = []
         cmd_list.append("python")
         cmd_list.extend(["-m", "scoop"])
         cmd_list.extend(["--hosts", "home-remote"])
-        cmd_list.extend(["-p", "/home/josh/Dropbox/GitHub/jmoles/python/"])
+        #cmd_list.extend(["--hostfile", "hosts.txt"])
+        #cmd_list.extend(["-p", "/u/jmoles/workspace/tlab/python"])
+        cmd_list.extend(["-p", "/home/josh/Dropbox/GitHub/jmoles/python"])
+        # cmd_list.extend(["-n", "48"])
         cmd_list.extend(["-n", "8"])
         cmd_list.extend(["--python-interpreter", "/usr/bin/python"])
         cmd_list.append("ga_runner.py")
@@ -91,16 +85,14 @@ class AgentGA(QtCore.QThread):
         cmd_list.extend(["-m", str(self.moves)])
         self.proc = subprocess.Popen(cmd_list)
 
-        # Use ZMQ to collect information from process.
-        HOST    = "tcp://puma.joshmoles.com:9854"
-        context = zmq.Context()
-        sock    = context.socket(zmq.SUB)
-        sock.setsockopt(zmq.SUBSCRIBE, '')
-        zmq.ssh.tunnel.tunnel_connection(sock, HOST, "puma.joshmoles.com:7862")
+        # Set up ZMQ push/pull
+        HOST        = "tcp://puma.joshmoles.com:9854"
+        context     = zmq.Context()
+        receiver    = context.socket(zmq.PULL)
+        zmq.ssh.tunnel.tunnel_connection(receiver, HOST, "puma.joshmoles.com:7862")
 
-        while True:
-            message = sock.recv()
-            json_data = self.__parseMessage(message)
+        while not self.__abort:
+            json_data = receiver.recv_json()
 
             if json_data:
                 self.c.newProg.emit(json_data["progress_percent"])
@@ -115,10 +107,17 @@ class AgentGA(QtCore.QThread):
             else:
                 print "Something is wrong with the JSON data."
 
+        if self.__abort:
+            print "Aborted!"
 
-
-
-
-
-
-
+            # Kill the subprocess.
+            if self.proc:
+                print "Attempting to kill subprocess."
+                self.proc.terminate()
+                retval = self.proc.poll()
+                if retval == None:
+                    print "Waiting on subprocess..."
+                    self.proc.wait()
+                    print "Subprocess killed"
+                else:
+                    print "Subprocess killed"

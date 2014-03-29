@@ -45,14 +45,9 @@ def __singleMazeTask(individual, moves):
 def main():
     # Configure ZMQ
     # Publisher role
-    # HOST = "tcp://*:9854"
-    context = zmq.Context()
-    # sock = context.socket(zmq.PUB)
-    # sock.bind(HOST)
-
-    # Sender role
-    sender = context.socket(zmq.PUSH)
-    sender.connect("tcp://131.252.222.4:5558")
+    context   = zmq.Context()
+    sender    = context.socket(zmq.PUSH)
+    sender.bind("tcp://*:9854")
 
     # Parse the arguments
     parser = argparse.ArgumentParser(
@@ -128,13 +123,12 @@ def main():
         else:
             done = False
 
-        json_data = json.dumps({
+        sender.send_json({
                 "progress_percent"   : percent_done,
                 "current_generation" : gen + 1,
                 "top_dog"            : tools.selBest(population, k=1)[0],
                 "done"               : done,
                 "stats"              : logbook})
-        sender.send(HOST + " : " + json_data)
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", np.mean)
@@ -142,6 +136,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
