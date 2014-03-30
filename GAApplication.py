@@ -10,6 +10,8 @@ from AgentGA import AgentGA
 from AgentNetwork import AgentNetwork
 from AgentTrail import AgentTrail
 
+from GASettings import GASettings
+
 class Communicate(QtCore.QObject):
     newFile  = QtCore.Signal(str)
     newSpeed = QtCore.Signal(int)
@@ -24,14 +26,16 @@ class GAApplication(QtGui.QMainWindow):
         QtCore.QCoreApplication.setOrganizationName("Josh Moles")
         QtCore.QCoreApplication.setOrganizationDomain("joshmoles.com")
         QtCore.QCoreApplication.setApplicationName("Ant Trail")
-        self.settings = QtCore.QSettings()
+        self.settings = GASettings()
 
         # Variables
-        self.filename = "trails/john_muir_32.yaml"
-        self.moves    = self.settings.value("moves", 350)
-        self.pop_size = self.settings.value("population", 300)
-        self.gens     = self.settings.value("generations", 200)
-        self.auto_run = self.settings.value("auto_run", 30)
+        self.settings.beginGroup("trail")
+        self.filename = self.settings.value("default_file")
+        self.moves    = self.settings.value("moves")
+        self.pop_size = self.settings.value("population")
+        self.gens     = self.settings.value("generations")
+        self.auto_run = self.settings.value("auto_run")
+        self.settings.endGroup()
 
         # UI Elements
         self.moves_box    = ()
@@ -47,7 +51,7 @@ class GAApplication(QtGui.QMainWindow):
 
         self.readSettings()
 
-        self.antTrail = TrailUI(self)
+        self.antTrail = TrailUI(self, self.filename)
         self.antTrail.setContentsMargins(0,0,0,0)
 
         # Get the handle to the statusbar.
@@ -82,15 +86,22 @@ class GAApplication(QtGui.QMainWindow):
         self.settings.setValue("pos", self.pos())
         self.settings.endGroup()
 
+        self.settings.beginGroup("trail")
+        self.settings.setValue("default_file", self.filename)
+        self.settings.setValue("moves", self.moves_box.value())
+        self.settings.setValue("population", self.pop_box.value())
+        self.settings.setValue("generations", self.gen_box.value())
+        self.settings.setValue("auto_run", self.auto_run_box.value())
+        self.settings.endGroup()
+
     def readSettings(self):
         self.settings.beginGroup("MainWindow")
-        self.resize(self.settings.value("size", QtCore.QSize(300, 300)))
-        self.move(self.settings.value("pos", QtCore.QPoint(200, 200)))
+        self.resize(self.settings.value("size"))
+        self.move(self.settings.value("pos"))
         self.settings.endGroup()
 
     def closeEvent(self, event):
         self.writeSettings()
-        self.settings.sync()
         QtGui.QMainWindow.closeEvent(self, event)
 
     def createActions(self):
@@ -108,26 +119,28 @@ class GAApplication(QtGui.QMainWindow):
         self.toolsMenu.addAction(self.gatoolsAct)
 
     def createDocks(self):
-        self.settings.beginGroup("GADockDefaults")
+        self.settings.beginGroup("trail")
 
         # Build each of the spin boxes.
         self.moves_box    = QtGui.QSpinBox()
         self.moves_box.setRange(1, 1000)
-        self.moves_box.setValue(self.settings.value("moves", 350))
-        self.moves_box.setToolTip("The maixmum number of moves that the agent can make in the maze.")
+        self.moves_box.setValue(self.moves)
+        self.moves_box.setToolTip(
+            "The maixmum number of moves that the agent can make in the maze.")
 
         self.pop_box      = QtGui.QSpinBox()
         self.pop_box.setRange(1, 1000)
-        self.pop_box.setValue(self.settings.value("population", 300))
+        self.pop_box.setValue(self.pop_size)
 
         self.gen_box      = QtGui.QSpinBox()
         self.gen_box.setRange(1, 1000)
-        self.gen_box.setValue(self.settings.value("generations", 200))
-        self.gen_box.setToolTip("The number of generations to run the optimization for.")
+        self.gen_box.setValue(self.gens)
+        self.gen_box.setToolTip(
+            "The number of generations to run the optimization for.")
 
         self.auto_run_box = QtGui.QSpinBox()
         self.auto_run_box.setRange(1, self.gen_box.maximum())
-        self.auto_run_box.setValue(self.settings.value("auto_run", 30))
+        self.auto_run_box.setValue(self.auto_run)
 
         self.run_button   = QtGui.QPushButton("Run")
         self.run_button.clicked.connect(self.__runGA)
@@ -156,7 +169,7 @@ class GAApplication(QtGui.QMainWindow):
         self.ga_dock.setWidget(content)
         self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.ga_dock)
 
-        self.settings.beginGroup("GADockSettings")
+        self.settings.endGroup()
 
     def connectSigSlot(self):
         # Connect the signal/slot for the status bar.

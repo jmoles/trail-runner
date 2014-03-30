@@ -3,6 +3,7 @@ import numpy as np
 from PySide import QtCore, QtGui
 from AgentTrail import AgentTrail, GridVals
 
+from GASettings import GASettings
 
 class Solarized():
     BASE03  = QtGui.QColor("#002b36")
@@ -31,18 +32,21 @@ class TrailUI(QtGui.QFrame):
     ROTATE_ANGLE   = 90
     ROTATE_MAX     = 360 - 1
 
-    AGENT_DELTA_S  = "agent/move_delta"
-    RECT_SIZE_S    = "trail/grid_size"
+    AGENT_DELTA_S  = "trailUI/agent_delta"
+    RECT_SIZE_S    = "trailUI/rect_size"
 
     DEFAULT_FILE   = "trails/john_muir_32.yaml"
 
     # Constructor function
-    def __init__(self, parent):
+    def __init__(self, parent, filename):
         super(TrailUI, self).__init__()
 
-        # Create an Agent Trail 
+        # Used to get to settings
+        self.settings = GASettings()
+
+        # Create an Agent Trail
         self.agent_trail = AgentTrail()
-        self.agent_trail.readTrail(self.DEFAULT_FILE)
+        self.agent_trail.readTrail(filename)
 
         # Get the size of the data grid and decrement by 1 since board
         # grid starts at index 0.
@@ -70,12 +74,8 @@ class TrailUI(QtGui.QFrame):
         self.setSizePolicy(QtGui.QSizePolicy.Minimum,
             QtGui.QSizePolicy.Minimum)
 
-        # Used to get to settings
-        self.settings = QtCore.QSettings()
-
-        # Define some settings if they aren't defined
-        if not self.settings.contains(self.RECT_SIZE_S):
-            self.settings.setValue(self.RECT_SIZE_S, 16)
+        self.__agent_delta = self.settings.value(TrailUI.AGENT_DELTA_S)
+        self.__grid_size   = self.settings.value(TrailUI.RECT_SIZE_S)
 
         self.__last_filename = ""
 
@@ -95,34 +95,37 @@ class TrailUI(QtGui.QFrame):
 
         self.setUpdatesEnabled(True)
 
-    @QtCore.Slot(int)
-    def setAntSpeed(self, newSpeed):
-        self.settings.setValue(self.AGENT_DELTA_S, newSpeed)
-        self.timer.stop()
-        self.timer.start(self.settings.value(self.AGENT_DELTA_S), self)
+    @QtCore.Slot(bool)
+    def settingsUpdated(self):
+        self.__agent_delta = self.settings.value(TrailUI.AGENT_DELTA_S)
+        self.__grid_size   = self.settings.value(TrailUI.RECT_SIZE_S)
+
+        if self.timer.isActive():
+            self.timer.stop()
+            self.timer.start(self.__agent_delta, self)
 
     def pause(self):
         self.timer.stop()
 
     def resume(self):
-        self.timer.start(self.settings.value(self.AGENT_DELTA_S, 50), self)
+        self.timer.start(self.__agent_delta, self)
 
     def sizeHint(self):
         """Sets the size hint to preferrably two boxes larger than
         the minimum size of the maze.
         """
-        return QtCore.QSize((self.maxX + 3) * 
-            self.settings.value(self.RECT_SIZE_S),
-            (self.maxY + 3) * self.settings.value(self.RECT_SIZE_S))
+        return QtCore.QSize((self.maxX + 3) *
+            self.__grid_size,
+            (self.maxY + 3) * self.__grid_size)
 
     def minimumSizeHint(self):
-        """Sets the minimum size hint to the exact dimensions 
+        """Sets the minimum size hint to the exact dimensions
         of the maze.
         """
-        return QtCore.QSize((self.maxX + 1) * 
-            self.settings.value(self.RECT_SIZE_S),
-            (self.maxY + 1) * self.settings.value(self.RECT_SIZE_S))
-        
+        return QtCore.QSize((self.maxX + 1) *
+            self.__grid_size,
+            (self.maxY + 1) * self.__grid_size)
+
     def queueAutoMove(self, strIn):
         """Starts a series of autmoatic movments of ant passed a
         string with the motions to perform.
@@ -135,7 +138,7 @@ class TrailUI(QtGui.QFrame):
         """
         self.autoMoveStr = strIn
         self.movePos     = 0
-        self.timer.start(self.settings.value(self.AGENT_DELTA_S, 50), self)
+        self.timer.start(self.__agent_delta, self)
 
     def paintEvent(self, event):
         # Get the grid from AgentTrail
@@ -145,11 +148,11 @@ class TrailUI(QtGui.QFrame):
         self.maxY, self.maxX = self.agent_trail.getTrailDim()
 
         painter = QtGui.QPainter(self)
-        painter.translate(self.settings.value(self.RECT_SIZE_S),
-            self.settings.value(self.RECT_SIZE_S))
+        painter.translate(self.__grid_size,
+            self.__grid_size)
         painter.fillRect(0, 0,
-            (self.maxX + 2) * self.settings.value(self.RECT_SIZE_S),
-            (self.maxY + 2) * self.settings.value(self.RECT_SIZE_S),
+            (self.maxX + 2) * self.__grid_size,
+            (self.maxY + 2) * self.__grid_size,
             QtGui.QBrush(Solarized.BASE3))
 
         # Paint the grid
@@ -188,7 +191,7 @@ class TrailUI(QtGui.QFrame):
             self.c.msgToSB.emit("Keyboard movment is disabled!")
             QtGui.QWidget.keyPressEvent(self, event)
             return
-        
+
         if key == QtCore.Qt.Key_Left or key == QtCore.Qt.Key_A:
             self.agent_trail.turnLeft()
         elif key == QtCore.Qt.Key_Right or key == QtCore.Qt.Key_D:
@@ -207,8 +210,8 @@ class TrailUI(QtGui.QFrame):
         moves = self.agent_trail.getNumMoves()
         foodl = self.agent_trail.getFoodStats()
 
-        sbSendMessage = ("Moves: " + str(moves) + 
-            " Food Consumed / Remaining / Total: " + 
+        sbSendMessage = ("Moves: " + str(moves) +
+            " Food Consumed / Remaining / Total: " +
             str(foodl[0]) + " / " + str(foodl[1]) + " / " +
             str(foodl[0] + foodl[1]))
 
@@ -231,10 +234,10 @@ class TrailUI(QtGui.QFrame):
         painter.setPen(QtGui.QPen(Solarized.BASE03))
         painter.setBrush(QtGui.QBrush(colors[fill]))
 
-        painter.drawRect(x * self.settings.value(self.RECT_SIZE_S), 
-            y * self.settings.value(self.RECT_SIZE_S), 
-            self.settings.value(self.RECT_SIZE_S),
-            self.settings.value(self.RECT_SIZE_S))
+        painter.drawRect(x * self.__grid_size,
+            y * self.__grid_size,
+            self.__grid_size,
+            self.__grid_size)
 
         # If this box needs to contain food,soa draw it.
         if fill == GridVals.FOOD:
@@ -259,9 +262,9 @@ class TrailUI(QtGui.QFrame):
 
         # Draw the circle centered in box with radius of 1/4 the circle
         center = QtCore.QPointF(
-            self.settings.value(self.RECT_SIZE_S) * (x + 0.5),
-            self.settings.value(self.RECT_SIZE_S) * (y + 0.5))
-        radius = self.settings.value(self.RECT_SIZE_S) / 4
+            self.__grid_size * (x + 0.5),
+            self.__grid_size * (y + 0.5))
+        radius = self.__grid_size / 4
         painter.drawEllipse(center, radius, radius)
         painter.restore()
 
@@ -271,7 +274,7 @@ class TrailUI(QtGui.QFrame):
 
         triPath = QtGui.QPainterPath()
 
-        sqSize = self.settings.value(self.RECT_SIZE_S)
+        sqSize = self.__grid_size
 
         left = QtCore.QPointF(0, sqSize)
         top = QtCore.QPointF(sqSize / 2, 0)
@@ -300,7 +303,7 @@ class TrailUI(QtGui.QFrame):
         # Actually paint the shape now.
         painter.setPen(QtGui.QPen(Solarized.ORANGE))
         painter.fillPath(triPath, QtGui.QBrush(Solarized.ORANGE))
-        
+
         painter.restore()
 
 
