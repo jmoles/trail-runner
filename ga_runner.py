@@ -82,57 +82,58 @@ def main():
     population = toolbox.population(n=args.population)
     start_gen  = 0
     halloffame = tools.HallOfFame(maxsize=1)
-    stats      = tools.Statistics()
-    logbook    = tools.Logbook()
+    food_stats = tools.Statistics(key=lambda ind: ind.fitness.values[0])
+    move_stats = tools.Statistics(key=lambda ind: ind.fitness.values[1])
+    mstats     = tools.MultiStatistics(food=food_stats, moves=move_stats)
 
-    logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
+    mstats.register("min", np.min)
+    mstats.register("avg", np.mean)
+    mstats.register("max", np.max)
+    mstats.register("std", np.std)
 
     # Begin the generational process
-    for gen in range(0, args.generations):
+    for gen in range(1, args.generations + 1):
 
         # TODO: Need to add check and comms from master
         # to cease work when the stop button is pushed.
 
         # Select the next generation individuals
         offspring = toolbox.select(population, len(population))
-        
+
         # Vary the pool of individuals
         offspring = algorithms.varAnd(offspring, toolbox, cxpb=0.5, mutpb=0.2)
-        
+
         # Evaluate the individuals with an invalid fitness
         invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
         fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
         for ind, fit in zip(invalid_ind, fitnesses):
             ind.fitness.values = fit
-        
+
         # Update the hall of fame with the generated individuals
         if halloffame is not None:
             halloffame.update(offspring)
-            
+
         # Replace the current population by the offspring
         population[:] = offspring
-        
-        # Append the current generation statistics to the logbook
-        record = stats.compile(population) if stats else {}
-        logbook.record(gen=gen, nevals=len(invalid_ind), **record)
 
-        percent_done = int((float(gen + 1) / float(args.generations)) * 100)
+        # Determinte the current generations statistics.
+        record = mstats.compile(population)
 
-        if gen + 1 == args.generations:
+        # Calculate the percent done for the progress bar.
+        percent_done = int((float(gen) / float(args.generations)) * 100)
+
+        if gen == args.generations:
             done = True
         else:
             done = False
 
         sender.send_json({
                 "progress_percent"   : percent_done,
-                "current_generation" : gen + 1,
+                "current_generation" : gen,
+                "current_evals"      : len(invalid_ind),
                 "top_dog"            : tools.selBest(population, k=1)[0],
                 "done"               : done,
-                "stats"              : logbook})
-
-    stats = tools.Statistics(lambda ind: ind.fitness.values)
-    stats.register("avg", np.mean)
-    stats.register("max", np.max)
+                "record"             : record})
 
 if __name__ == "__main__":
     main()

@@ -1,8 +1,12 @@
+from deap import tools
 import json
 import subprocess
 import zmq
 from zmq import ssh
 from PySide import QtCore, QtGui
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 class Communicate(QtCore.QObject):
     newProg       = QtCore.Signal(int)
@@ -58,15 +62,12 @@ class AgentGA(QtCore.QThread):
         self.__abort = True
         self.mutex.unlock()
 
-    def __parseMessage(self, message):
-        return json.loads(message)
-
     def __runMaze(self):
-        # self.proc = subprocess.Popen(["python", "-m", "scoop", "-n", "2",
-        #     "ga_runner.py",
-        #     "-g", str(self.gens),
-        #     "-p", str(self.pop_size),
-        #     "-m", str(self.moves)], stdout=subprocess.PIPE)
+        # Configure a logbook object
+        logbook = tools.Logbook()
+        logbook.header = "gen", "evals", "food", "moves"
+        logbook.chapters["food"].header = "min", "avg", "max", "std"
+        logbook.chapters["moves"].header = "min", "avg", "max", "std"
 
         # Set up a ZMQ to send informaton to each of the processes.
         HOST_RUN = "tcp://*:9855"
@@ -97,8 +98,14 @@ class AgentGA(QtCore.QThread):
             json_data = receiver.recv_json()
 
             if json_data:
+                # Record the data in the logbook
+                logbook.record(gen=json_data["current_generation"],
+                    evals=json_data["current_evals"], **json_data["record"])
+
+                # Update the GUI progress bar and labels.
                 self.c.newProg.emit(json_data["progress_percent"])
                 self.c.newGen.emit(str(json_data["current_generation"]))
+
                 if json_data["done"]:
                     self.c.newIndividual.emit(json_data["top_dog"])
                     print "Processing complete!"
@@ -109,6 +116,8 @@ class AgentGA(QtCore.QThread):
                         self.c.newIndividual.emit(json_data["top_dog"])
             else:
                 print "Something is wrong with the JSON data."
+
+        self.__plotData(logbook)
 
         if self.__abort:
             print "Aborted!"
@@ -124,3 +133,27 @@ class AgentGA(QtCore.QThread):
                     print "Subprocess killed"
                 else:
                     print "Subprocess killed"
+
+
+    def __plotData(self, logbook):
+        gen        = logbook.select("gen")
+        moves_avgs = logbook.chapters["moves"].select("avg")
+        food_avgs  = logbook.chapters["food"].select("avg")
+
+        fig, ax1 = plt.subplots()
+        line1 = ax1.plot(gen, moves_avgs, "b-", label="Average Moves")
+        ax1.set_xlabel("Generation")
+        ax1.set_ylabel("Moves", color="b")
+        for tl in ax1.get_yticklabels():
+            tl.set_color("b")
+
+        ax2 = ax1.twinx()
+        line2 = ax2.plot(gen, food_avgs , "r-", label="Average Food")
+        ax2.set_ylabel("Food", color="r")
+        for tl in ax2.get_yticklabels():
+            tl.set_color("r")
+
+        lns = line1 + line2
+        labs = [l.get_label() for l in lns]
+
+        plt.savefig("test")
