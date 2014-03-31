@@ -1,4 +1,4 @@
-# Import required modules
+import logging
 import sys
 import time
 from numpy import matrix
@@ -266,7 +266,7 @@ class GAApplication(QtGui.QMainWindow):
         # self.addToolBar(self.progress_toolbar)
 
     def __resetGADock(self):
-        print "This would reset menu."
+        pass
 
     @QtCore.Slot(list)
     def __runAgentSlot(self, individual):
@@ -288,7 +288,7 @@ class GAApplication(QtGui.QMainWindow):
             # First, check if all food was consumed,
             # if so, break.
             if at.getFoodStats()[1] == 0:
-                print "All food consumed!"
+                logging.info("All food has been consumed.")
                 break
 
             currMove = an.determineMove(at.isFoodAhead())

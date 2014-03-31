@@ -116,7 +116,7 @@ class TrailUI(QtGui.QFrame):
         """
         return QtCore.QSize((self.maxX + 3) *
             self.__grid_size,
-            (self.maxY + 3) * self.__grid_size)
+            (self.maxY + 4) * self.__grid_size)
 
     def minimumSizeHint(self):
         """Sets the minimum size hint to the exact dimensions
@@ -124,7 +124,7 @@ class TrailUI(QtGui.QFrame):
         """
         return QtCore.QSize((self.maxX + 1) *
             self.__grid_size,
-            (self.maxY + 1) * self.__grid_size)
+            (self.maxY + 2) * self.__grid_size)
 
     def queueAutoMove(self, strIn):
         """Starts a series of autmoatic movments of ant passed a
@@ -148,11 +148,11 @@ class TrailUI(QtGui.QFrame):
         self.maxY, self.maxX = self.agent_trail.getTrailDim()
 
         painter = QtGui.QPainter(self)
-        painter.translate(self.__grid_size,
-            self.__grid_size)
+        painter.translate(2 * self.__grid_size,
+            2 * self.__grid_size)
         painter.fillRect(0, 0,
-            (self.maxX + 2) * self.__grid_size,
-            (self.maxY + 2) * self.__grid_size,
+            (self.maxX) * self.__grid_size,
+            (self.maxY) * self.__grid_size,
             QtGui.QBrush(Solarized.BASE3))
 
         # Paint the grid

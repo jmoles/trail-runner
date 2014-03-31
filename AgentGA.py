@@ -1,5 +1,6 @@
 from deap import tools
 import json
+import logging
 import subprocess
 import time
 import zmq
@@ -130,14 +131,14 @@ class AgentGA(QtCore.QThread):
 
                 if json_data["done"]:
                     self.c.newIndividual.emit(json_data["top_dog"])
-                    print "Processing complete!"
+                    logging.info("Processing is complete!")
                     break
                 else:
                     if (json_data["current_generation"] %
                             self.auto_run == 0):
                         self.c.newIndividual.emit(json_data["top_dog"])
             else:
-                print "Something is wrong with the JSON data."
+                logging.critical("The JSON parser has failed to parse data.")
 
             gens_remain = gens_remain - 1
             last_time_s = time.time() - gen_start_time
@@ -145,19 +146,19 @@ class AgentGA(QtCore.QThread):
         self.__plotData(logbook)
 
         if self.__abort:
-            print "Aborted!"
+            logging.info("Processing is aborting.")
 
             # Kill the subprocess.
             if self.proc:
-                print "Attempting to kill subprocess."
+                logging.debug("Attempting to kill subprocess.")
                 self.proc.terminate()
                 retval = self.proc.poll()
                 if retval == None:
-                    print "Waiting on subprocess..."
+                    logging.debug("Waiting on subprocess...")
                     self.proc.wait()
-                    print "Subprocess killed"
+                    logging.debug("Subprocess killed")
                 else:
-                    print "Subprocess killed"
+                    logging.debug("Subprocess killed")
 
         # Display the
         run_time = time.time() - start_time
