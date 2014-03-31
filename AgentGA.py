@@ -1,6 +1,7 @@
 from deap import tools
 import json
 import subprocess
+import time
 import zmq
 from zmq import ssh
 from PySide import QtCore, QtGui
@@ -12,10 +13,11 @@ class Communicate(QtCore.QObject):
     newProg       = QtCore.Signal(int)
     newIndividual = QtCore.Signal(list)
     newGen        = QtCore.Signal(str)
+    newTime       = QtCore.Signal(str)
 
 class AgentGA(QtCore.QThread):
 
-    def __init__(self, bar=None, gen_label=None):
+    def __init__(self, bar=None, gen_label=None, time_label=None):
         super(AgentGA, self).__init__()
         self.filename   = ""
         self.moves      = 0
@@ -28,10 +30,12 @@ class AgentGA(QtCore.QThread):
 
         self.bar        = bar
         self.gen_label  = gen_label
+        self.time_label = time_label
 
         # Connect the signal/slot for the progress bar
         self.c.newProg[int].connect(self.bar.setValue)
         self.c.newGen[str].connect(self.gen_label.setText)
+        self.c.newTime[str].connect(self.time_label.setText)
 
         self.proc       = ()
 
@@ -63,6 +67,7 @@ class AgentGA(QtCore.QThread):
         self.mutex.unlock()
 
     def __runMaze(self):
+        start_time = time.time()
         # Configure a logbook object
         logbook = tools.Logbook()
         logbook.header = "gen", "evals", "food", "moves"
@@ -94,7 +99,13 @@ class AgentGA(QtCore.QThread):
         receiver    = context.socket(zmq.PULL)
         zmq.ssh.tunnel.tunnel_connection(receiver, HOST, "puma.joshmoles.com:7862")
 
+        gens_remain  = self.gens
+        last_time_s = 0
+
+        last_s_list = []
+
         while not self.__abort:
+            gen_start_time = time.time()
             json_data = receiver.recv_json()
 
             if json_data:
@@ -106,6 +117,17 @@ class AgentGA(QtCore.QThread):
                 self.c.newProg.emit(json_data["progress_percent"])
                 self.c.newGen.emit(str(json_data["current_generation"]))
 
+                while len(last_s_list) > 10:
+                    last_s_list.pop()
+                last_s_list.insert(0, last_time_s)
+
+                avg_time_run = sum(last_s_list) / len(last_s_list)
+
+                remain_time = QtCore.QTime(0, 0, 0, 0)
+                remain_time = remain_time.addSecs(
+                    avg_time_run * gens_remain)
+                self.c.newTime.emit(remain_time.toString("mm:ss"))
+
                 if json_data["done"]:
                     self.c.newIndividual.emit(json_data["top_dog"])
                     print "Processing complete!"
@@ -116,6 +138,9 @@ class AgentGA(QtCore.QThread):
                         self.c.newIndividual.emit(json_data["top_dog"])
             else:
                 print "Something is wrong with the JSON data."
+
+            gens_remain = gens_remain - 1
+            last_time_s = time.time() - gen_start_time
 
         self.__plotData(logbook)
 
@@ -134,6 +159,11 @@ class AgentGA(QtCore.QThread):
                 else:
                     print "Subprocess killed"
 
+        # Display the
+        run_time = time.time() - start_time
+        run_time_qtime = QtCore.QTime(0, 0, 0, 0)
+        run_time_qtime = run_time_qtime.addSecs(run_time)
+        self.c.newTime.emit(run_time_qtime.toString("mm:ss"))
 
     def __plotData(self, logbook):
         gen        = logbook.select("gen")

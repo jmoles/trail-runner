@@ -56,8 +56,17 @@ class GAApplication(QtGui.QMainWindow):
 
         # Get the handle to the statusbar.
         self.statusbar = self.statusBar()
-        self.gen_label = QtGui.QLabel("0")
+
+        # Labels for the progress bar area for current generation
+        # and time remaining.
+        self.gen_label = QtGui.QLabel()
+        self.gen_label.setToolTip("Current Generation")
         self.gen_label.setAlignment(QtCore.Qt.AlignLeft)
+        self.gen_label.setMinimumWidth(40)
+        self.time_label = QtGui.QLabel()
+        self.time_label.setToolTip("Estimated Time Remaining")
+        self.time_label.setAlignment(QtCore.Qt.AlignRight)
+        self.time_label.setMinimumWidth(65)
 
         # Create actions
         self.createActions()
@@ -69,12 +78,16 @@ class GAApplication(QtGui.QMainWindow):
         self.createDocks()
 
         # Set up the thread to run Genetic Algorithms
-        self.ga_thread  = AgentGA(self.progress_bar, self.gen_label)
+        self.ga_thread  = AgentGA(self.progress_bar, self.gen_label,
+            self.time_label)
 
         # Connect the signals and slots
         self.connectSigSlot()
 
         self.setCentralWidget(self.antTrail)
+
+        # Set the status bar text to ready.
+        self.statusbar.showMessage("Ready")
 
     def __exit__(self):
         self.ga_thread.stop()
@@ -148,8 +161,6 @@ class GAApplication(QtGui.QMainWindow):
         self.reset_button      = QtGui.QPushButton("Reset")
         self.reset_button.clicked.connect(self.__resetGADock)
 
-        self.progress_bar = QtGui.QProgressBar()
-
         # Build the GA Settings Dock
         layout       = QtGui.QFormLayout()
         layout.addRow(QtGui.QLabel("Moves"), self.moves_box)
@@ -157,8 +168,6 @@ class GAApplication(QtGui.QMainWindow):
         layout.addRow(QtGui.QLabel("Generations"), self.gen_box)
         layout.addRow(QtGui.QLabel("Auto Run"), self.auto_run_box)
         layout.addRow(self.run_button, self.reset_button)
-        layout.addRow(self.progress_bar)
-        layout.addRow(QtGui.QLabel("Current Generation"), self.gen_label)
 
         content = QtGui.QWidget()
         content.setLayout(layout)
@@ -168,6 +177,23 @@ class GAApplication(QtGui.QMainWindow):
             QtCore.Qt.LeftDockWidgetArea)
         self.ga_dock.setWidget(content)
         self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.ga_dock)
+
+        # Build the bottom progress dock.
+        self.progress_bar = QtGui.QProgressBar()
+
+        layout = QtGui.QHBoxLayout()
+        layout.addWidget(self.gen_label)
+        layout.addWidget(self.progress_bar)
+        layout.addWidget(self.time_label)
+
+        content = QtGui.QWidget()
+        content.setLayout(layout)
+
+        self.progress_toolbar = QtGui.QToolBar(parent=self)
+        self.progress_toolbar.addWidget(content)
+        self.progress_toolbar.setFloatable(False)
+        self.progress_toolbar.setMovable(False)
+        self.addToolBar(QtCore.Qt.BottomToolBarArea, self.progress_toolbar)
 
         self.settings.endGroup()
 
@@ -225,15 +251,19 @@ class GAApplication(QtGui.QMainWindow):
         self.run_button.setText("Start")
         self.reset_button.setDisabled(False)
         self.c.newProg.emit(100)
+        # self.removeToolBar(self.progress_toolbar)
 
     def __setRunTerminated(self):
         self.run_button.setText("Start")
         self.reset_button.setDisabled(False)
+        # self.removeToolBar(self.progress_toolbar)
 
     def __setRunStarted(self):
         self.run_button.setText("Stop")
         self.reset_button.setDisabled(True)
         self.c.newProg.emit(0)
+        self.statusbar.showMessage("Running...")
+        # self.addToolBar(self.progress_toolbar)
 
     def __resetGADock(self):
         print "This would reset menu."
