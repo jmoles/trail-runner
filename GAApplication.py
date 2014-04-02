@@ -266,7 +266,10 @@ class GAApplication(QtGui.QMainWindow):
         # self.addToolBar(self.progress_toolbar)
 
     def __resetGADock(self):
-        pass
+        self.moves_box.setValue(GASettings.TRAIL_MOVES)
+        self.pop_box.setValue(GASettings.TRAIL_POPULATION)
+        self.gen_box.setValue(GASettings.TRAIL_GENERATIONS)
+        self.auto_run_box.setValue(GASettings.TRAIL_AUTO_RUN)
 
     @QtCore.Slot(list)
     def __runAgentSlot(self, individual):

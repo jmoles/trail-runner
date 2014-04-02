@@ -4,6 +4,12 @@ class GASettings(QtCore.QSettings):
 
     VERSION = 2
 
+    # Defaults for items
+    TRAIL_MOVES        = 325
+    TRAIL_POPULATION   = 300
+    TRAIL_GENERATIONS  = 200
+    TRAIL_AUTO_RUN     = 30
+
     def __init__(self):
         self.__configureProgramInfo()
 
