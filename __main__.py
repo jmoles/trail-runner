@@ -1,8 +1,13 @@
 # Import required modules
+import logging
 import sys
 from PySide import QtCore, QtGui
 
 from GAApplication import GAApplication
+
+# Configure Logging
+root = logging.getLogger()
+root.setLevel(logging.DEBUG)
 
 
 def main():

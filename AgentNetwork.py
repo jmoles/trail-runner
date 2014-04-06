@@ -1,5 +1,5 @@
 from pybrain.structure import FeedForwardNetwork, LinearLayer, SigmoidLayer, FullConnection, RecurrentNetwork
-import numpy as np  
+import numpy as np
 
 class AgentNetwork:
     def __init__(self):
@@ -27,6 +27,8 @@ class AgentNetwork:
         self.network.sortModules()
 
         self.__params_length = len(self.network.params)
+
+        self.__network_string = "Jefferson 2,5,4 NN v1"
 
     def determineMove(self, trailAhead):
         """ Returns the move the agent should make.
@@ -61,7 +63,7 @@ class AgentNetwork:
         print ""
         print "Input to Output"
         print self.in_to_out.params
-        
+
         print ""
         print "Hidden to Output"
         print self.hidden_to_out.params
@@ -70,5 +72,8 @@ class AgentNetwork:
     def getParamsLength(self):
         return self.__params_length
 
-        
+
+    def getStringName(self):
+        return self.__network_string
+
 
