@@ -16,6 +16,7 @@ import zmq
 
 from AgentNetwork import AgentNetwork
 from AgentTrail import AgentTrail
+from  ProgressBar import *
 
 # Configure DEAP
 creator.create("FitnessMulti", base.Fitness, weights=(1,-1))
@@ -23,7 +24,7 @@ creator.create("Individual", list, fitness=creator.FitnessMulti)
 
 # Configure Logging
 root = logging.getLogger()
-root.setLevel(logging.DEBUG)
+root.setLevel(logging.INFO)
 
 # Pytables Stuff
 FILTERS=tables.Filters(complevel=5, complib='zlib', fletcher32=True)
@@ -196,7 +197,10 @@ def main():
 
     run_date = time.time()
 
-    for _ in range(0, args.repeat):
+    term = TerminalController()
+    progress = ProgressBar(term, 'Running Genetic Algorithm')
+
+    for curr_repeat in range(0, args.repeat):
 
         if(args.enable_zmq_updates):
             # Configure ZMQ - Publisher role
@@ -296,13 +300,20 @@ def main():
                 uuid_str, this_moves, this_food, record,
                 np.array(tools.selBest(population, k=1)[0], ndmin=2))
 
+            # Update the progress bar
+            bar_done_val = ((float(percent_done) / (100.0 * args.repeat)) +
+                (float(curr_repeat)) / (float(args.repeat)))
+            progress.update(bar_done_val,
+                "on generation %d / %d of repeat %d / %d" % (gen,
+                    args.generations, curr_repeat + 1, args.repeat))
+
 
     # Update the run configuration with total runtime
     total_time_s = time.time() - run_date
     __updateRuntime(args, uuid_str, total_time_s)
 
 
-    logging.info("Run " + uuid_str + " completed in " +
+    logging.info("Run completed in " +
         time.strftime('%H:%M:%S', time.gmtime(total_time_s)) + ".")
 
 
