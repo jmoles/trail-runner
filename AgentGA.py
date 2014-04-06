@@ -81,7 +81,7 @@ class AgentGA(QtCore.QThread):
         cmd_list = []
         cmd_list.append("python")
         cmd_list.extend(["-m", "scoop"])
-        cmd_list.extend(["--hosts", "home-remote"])
+        cmd_list.extend(["--hosts", "localhost"])
         #cmd_list.extend(["--hostfile", "hosts.txt"])
         #cmd_list.extend(["-p", "/u/jmoles/workspace/tlab/python"])
         cmd_list.extend(["-p", "/home/josh/Dropbox/GitHub/jmoles/python"])
@@ -92,13 +92,14 @@ class AgentGA(QtCore.QThread):
         cmd_list.extend(["-g", str(self.gens)])
         cmd_list.extend(["-p", str(self.pop_size)])
         cmd_list.extend(["-m", str(self.moves)])
+        cmd_list.extend(["-z"])
         self.proc = subprocess.Popen(cmd_list)
 
         # Set up ZMQ push/pull
-        HOST        = "tcp://puma.joshmoles.com:9854"
+        HOST        = "tcp://localhost:9854"
         context     = zmq.Context()
         receiver    = context.socket(zmq.PULL)
-        zmq.ssh.tunnel.tunnel_connection(receiver, HOST, "puma.joshmoles.com:7862")
+        zmq.ssh.tunnel.tunnel_connection(receiver, HOST, "localhost")
 
         gens_remain  = self.gens
         last_time_s = 0

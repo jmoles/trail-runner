@@ -26,6 +26,8 @@ class AgentNetwork:
 
         self.network.sortModules()
 
+        self.__params_length = len(self.network.params)
+
     def determineMove(self, trailAhead):
         """ Returns the move the agent should make.
 
@@ -63,6 +65,10 @@ class AgentNetwork:
         print ""
         print "Hidden to Output"
         print self.hidden_to_out.params
+
+
+    def getParamsLength(self):
+        return self.__params_length
 
         
 
