@@ -1,6 +1,8 @@
 ---
 name: "Sample L 5x5"
 init_rot: 0
+moves: 15
+type: agent-trail
 trail: |
     0 0 0 0 0
     1 1 7 1 0
