@@ -1,4 +1,5 @@
 import logging
+import ntpath
 import sys
 import time
 from numpy import matrix
@@ -7,7 +8,7 @@ from deap import algorithms, base, creator, tools
 
 from TrailUI import TrailUI
 from AgentGA import AgentGA
-from AgentNetwork import AgentNetwork
+from AgentNetwork import AgentNetwork, NetworkTypes
 from AgentTrail import AgentTrail
 
 from GASettings import GASettings
@@ -16,6 +17,7 @@ class Communicate(QtCore.QObject):
     newFile  = QtCore.Signal(str)
     newSpeed = QtCore.Signal(int)
     newProg  = QtCore.Signal(int)
+    newLogFile = QtCore.Signal(str)
 
 class GAApplication(QtGui.QMainWindow):
 
@@ -23,18 +25,19 @@ class GAApplication(QtGui.QMainWindow):
         super(GAApplication, self).__init__()
 
         # Configure and open settings
-        QtCore.QCoreApplication.setOrganizationName("Josh Moles")
-        QtCore.QCoreApplication.setOrganizationDomain("joshmoles.com")
-        QtCore.QCoreApplication.setApplicationName("Ant Trail")
         self.settings = GASettings()
 
         # Variables
         self.settings.beginGroup("trail")
         self.filename = self.settings.value("default_file")
-        self.moves    = self.settings.value("moves")
-        self.pop_size = self.settings.value("population")
-        self.gens     = self.settings.value("generations")
-        self.auto_run = self.settings.value("auto_run")
+        self.moves    = int(self.settings.value("moves"))
+        self.pop_size = int(self.settings.value("population"))
+        self.gens     = int(self.settings.value("generations"))
+
+        self.auto_run = int(self.settings.value("auto_run"))
+        self.__network_idx = int(self.settings.value("network_idx"))
+        self.__log_en   = bool(int(self.settings.value("logging_enabled")))
+        self.__log_file = self.settings.value("logging_file")
         self.settings.endGroup()
 
         # UI Elements
@@ -42,6 +45,9 @@ class GAApplication(QtGui.QMainWindow):
         self.pop_box      = ()
         self.gen_box      = ()
         self.auto_run_box = ()
+        self.__network_type_combo = ()
+        self.__logging_box  = ()
+        self.__logging_file_button = ()
         self.run_button   = ()
         self.reset_button = ()
         self.progress_bar = ()
@@ -105,6 +111,10 @@ class GAApplication(QtGui.QMainWindow):
         self.settings.setValue("population", self.pop_box.value())
         self.settings.setValue("generations", self.gen_box.value())
         self.settings.setValue("auto_run", self.auto_run_box.value())
+        self.settings.setValue("network_idx", self.__network_type_combo.currentIndex())
+        self.settings.setValue("logging_enabled",
+            int(self.__logging_box.isChecked()))
+        self.settings.setValue("logging_file", self.__log_file)
         self.settings.endGroup()
 
     def readSettings(self):
@@ -115,6 +125,7 @@ class GAApplication(QtGui.QMainWindow):
 
     def closeEvent(self, event):
         self.writeSettings()
+        del self.settings
         QtGui.QMainWindow.closeEvent(self, event)
 
     def createActions(self):
@@ -155,6 +166,18 @@ class GAApplication(QtGui.QMainWindow):
         self.auto_run_box.setRange(1, self.gen_box.maximum())
         self.auto_run_box.setValue(self.auto_run)
 
+        self.__network_type_combo = QtGui.QComboBox()
+        self.__network_type_combo.addItems(NetworkTypes.STRINGS)
+        self.__network_type_combo.setCurrentIndex(self.__network_idx)
+
+        self.__logging_box  = QtGui.QCheckBox("Log")
+        self.__logging_box.setChecked(self.__log_en)
+
+        self.__logging_file_button = QtGui.QPushButton(
+            ntpath.basename(self.__log_file))
+        self.__logging_file_button.clicked.connect(self.__openLogfile)
+        self.__logging_file_button.setEnabled(self.__log_en)
+
         self.run_button   = QtGui.QPushButton("Run")
         self.run_button.clicked.connect(self.__runGA)
 
@@ -167,6 +190,8 @@ class GAApplication(QtGui.QMainWindow):
         layout.addRow(QtGui.QLabel("Population"), self.pop_box)
         layout.addRow(QtGui.QLabel("Generations"), self.gen_box)
         layout.addRow(QtGui.QLabel("Auto Run"), self.auto_run_box)
+        layout.addRow(QtGui.QLabel("Network"), self.__network_type_combo)
+        layout.addRow(self.__logging_box, self.__logging_file_button)
         layout.addRow(self.run_button, self.reset_button)
 
         content = QtGui.QWidget()
@@ -204,6 +229,10 @@ class GAApplication(QtGui.QMainWindow):
         # Connect the signal/slot for the configuration
         self.c.newFile[str].connect(self.antTrail.loadGrid)
 
+        # Connect the signal/slot for the logging file settings
+        self.c.newLogFile[str].connect(self.__updateLogFile)
+        self.__logging_box.stateChanged[int].connect(self.__logCheckChanged)
+
         # Connect the signal/slot for the events when thread starts or stops.
         self.ga_thread.started.connect(self.__setRunStarted)
         self.ga_thread.terminated.connect(self.__setRunTerminated)
@@ -218,7 +247,8 @@ class GAApplication(QtGui.QMainWindow):
         self.antTrail.pause()
         filename, _ = QtGui.QFileDialog.getOpenFileName(self,
             str("Open Trail File"), "./trails",
-            str("Trail Files (*.yml *.yaml)"))
+            str("Trail Files (*.yml *.yaml);;"
+                "All Files(*)"))
 
         if filename != "":
             self.c.newFile.emit(filename)
@@ -226,6 +256,19 @@ class GAApplication(QtGui.QMainWindow):
         else:
             # Menu was cancelled. Just resume
             self.antTrail.resume()
+
+    def __openLogfile(self):
+        filename, _ = QtGui.QFileDialog.getOpenFileName(self,
+            str("Open Data File"), ".",
+            str("Hierarchial Data Format (*.hdf *.h5 *.hd5 *.he5;;"
+                "All Files(*)"))
+
+        if filename != "":
+            self.c.newLogFile.emit(filename)
+            self.__log_file = filename
+        else:
+            # Menu was cancelled. Just quit
+            pass
 
     def __runGA(self):
         if(not self.ga_thread.isRunning()):
@@ -237,12 +280,21 @@ class GAApplication(QtGui.QMainWindow):
             self.pop_size   = self.pop_box.value()
             self.gens       = self.gen_box.value()
             self.auto_run   = self.auto_run_box.value()
+            self.__network_idx  = self.__network_type_combo.currentIndex()
+            self.__log_en       = self.__logging_box.isChecked()
+
+            if self.__log_en:
+                logfile = self.__log_file
+            else:
+                logfile = None
 
             self.ga_thread.setVars(self.filename,
                 self.moves,
                 self.pop_size,
                 self.gens,
-                self.auto_run)
+                self.auto_run,
+                network=self.__network_idx,
+                log_file=logfile)
             self.ga_thread.start()
         else:
             self.ga_thread.stop()
@@ -278,7 +330,7 @@ class GAApplication(QtGui.QMainWindow):
         Args:
         individual (list): List of float weights used for activation network.
         """
-        an    = AgentNetwork()
+        an    = AgentNetwork(self.__network_idx)
         at    = AgentTrail()
         moves = ""
 
@@ -316,5 +368,28 @@ class GAApplication(QtGui.QMainWindow):
 
         self.antTrail.loadGrid(self.filename)
         self.antTrail.queueAutoMove(moves)
+
+    @QtCore.Slot(str)
+    def __updateLogFile(self, new_log):
+        """ Updates the log file currently in use and UI button.
+
+        Args:
+        new_log (str): New log file to record data in.
+        """
+
+        self.__log_file = new_log
+        self.__logging_file_button.setText(
+            ntpath.basename(new_log))
+
+
+    @QtCore.Slot(int)
+    def __logCheckChanged(self, check_state):
+
+        if check_state == QtCore.Qt.CheckState.Checked:
+            self.__logging_file_button.setEnabled(True)
+        else:
+            self.__logging_file_button.setEnabled(False)
+
+
 
 

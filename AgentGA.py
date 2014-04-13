@@ -18,13 +18,16 @@ class Communicate(QtCore.QObject):
 
 class AgentGA(QtCore.QThread):
 
-    def __init__(self, bar=None, gen_label=None, time_label=None):
+    def __init__(self, bar=None, gen_label=None, time_label=None,
+        network=0, log_file=None):
         super(AgentGA, self).__init__()
         self.filename   = ""
         self.moves      = 0
         self.pop_size   = 0
         self.gens       = 0
         self.auto_run   = 0
+        self.__network  = network
+        self.__log_file = log_file
 
         # Communicate class
         self.c          = Communicate()
@@ -49,12 +52,15 @@ class AgentGA(QtCore.QThread):
             self.proc.kill()
             self.proc.wait()
 
-    def setVars(self, filename, moves, pop, gens, auto_run):
+    def setVars(self, filename, moves, pop, gens, auto_run,
+        network=0, log_file=None):
         self.filename   = filename
         self.moves      = moves
         self.pop_size   = pop
         self.gens       = gens
         self.auto_run   = auto_run
+        self.__network  = network
+        self.__log_file = log_file
 
     def run(self):
         self.mutex.lock()
@@ -92,6 +98,11 @@ class AgentGA(QtCore.QThread):
         cmd_list.extend(["-g", str(self.gens)])
         cmd_list.extend(["-p", str(self.pop_size)])
         cmd_list.extend(["-m", str(self.moves)])
+        cmd_list.extend(["-n", str(self.__network)])
+
+        if self.__log_file:
+            cmd_list.extend(["-f", str(self.__log_file)])
+
         cmd_list.extend(["-z"])
         self.proc = subprocess.Popen(cmd_list)
 

@@ -10,6 +10,7 @@ import scoop
 import string
 import sys
 import tables
+import textwrap
 import time
 import uuid
 import zmq
@@ -147,10 +148,10 @@ def __recordRun(args, gen_i, runtime_i, uuid_s, moves_hof_i, food_hof_i, record_
         indiv_table.flush()
 
 
-def __singleMazeTask(individual, moves):
-    an = AgentNetwork()
+def __singleMazeTask(individual, moves, trail, network_type):
+    an = AgentNetwork(network_type)
     at = AgentTrail()
-    at.readTrail("trails/john_muir_32.yaml")
+    at.readTrail(trail)
 
     num_moves = 0
 
@@ -177,23 +178,38 @@ def __singleMazeTask(individual, moves):
 def main():
     # Parse the arguments
     parser = argparse.ArgumentParser(
-        description="Launches SCOOP parallelized version of genetic alogrithm.")
+        description="Launches SCOOP parallelized version "
+        "of genetic alogrithm.",
+        formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("-g", "--generations", type=int, nargs="?",
         default=200, help="Number of generations to run for.")
     parser.add_argument("-p", "--population", type=int, nargs="?",
         default=300, help="Size of the population.")
     parser.add_argument("-m", "--moves", type=int, nargs="?",
         default=325, help="Maximum moves for agent.")
+    parser.add_argument("-n", "--network", type=int, nargs="?",
+        default=1,
+        help=textwrap.dedent('''Network type to use. Valid options are:
+  0: Jefferson 2,5,4 NN v1
+  1: Jefferson w/ Manual DL 10,5,4 NN v1'''),
+        choices=range(0,2))
+    parser.add_argument("-t", "--trail", type=str, nargs="?",
+        default="trails/john_muir_32.yaml", help="Trail file to read.")
     parser.add_argument("-c", "--checkpoint-file", type=str, nargs="?",
         help="Checkpoint file to load from last run.")
     parser.add_argument("-z", "--enable-zmq-updates", action='store_true',
         help="Enable use of ZMQ messaging for real-time GUI monitoring.")
-    parser.add_argument("-t", "--table-file", type=str,
-        nargs="?", default="data.h5",
+    parser.add_argument("-f", "--table-file", type=str,
+        nargs="?",
         help="File to save table data in.")
     parser.add_argument("-r", "--repeat", type=int, nargs="?",
         default=1, help="Number of times to run simulations.")
     args = parser.parse_args()
+
+    if not args.table_file:
+        logging.warning("No table file was specified. These runs will "
+            "not get recorded in the logging database.")
+        time.sleep(3)
 
     run_date = time.time()
 
@@ -217,11 +233,12 @@ def main():
         toolbox.register("map", scoop.futures.map)
         toolbox.register("attr_float", random.uniform, a=-5, b=5)
         toolbox.register("individual", tools.initRepeat, creator.Individual,
-            toolbox.attr_float, n=len(AgentNetwork().network.params))
+            toolbox.attr_float, n=len(AgentNetwork(args.network).network.params))
         toolbox.register("population", tools.initRepeat, list,
             toolbox.individual)
 
-        toolbox.register("evaluate", __singleMazeTask, moves=args.moves)
+        toolbox.register("evaluate", __singleMazeTask, moves=args.moves,
+            trail=args.trail, network_type=args.network)
         toolbox.register("mate", tools.cxTwoPoint)
         toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
         toolbox.register("select", tools.selTournament, tournsize=3)
@@ -239,8 +256,9 @@ def main():
         mstats.register("max", np.max)
         mstats.register("std", np.std)
 
-        __prepareTable(args, run_date, uuid_str,
-            AgentNetwork().getStringName(), AgentNetwork().getParamsLength())
+        if args.table_file != None:
+            __prepareTable(args, run_date, uuid_str,
+                AgentNetwork(args.network).getStringName(), AgentNetwork(args.network).getParamsLength())
 
         # Begin the generational process
         for gen in range(1, args.generations + 1):
@@ -293,12 +311,13 @@ def main():
 
             this_food, this_moves = __singleMazeTask(tools.selBest(
                 population, k=1)[0],
-                args.moves)
+                args.moves, args.trail, args.network)
 
             # Record data in the table.
-            __recordRun(args, gen, time.time() - gen_start_time,
-                uuid_str, this_moves, this_food, record,
-                np.array(tools.selBest(population, k=1)[0], ndmin=2))
+            if args.table_file != None:
+                __recordRun(args, gen, time.time() - gen_start_time,
+                    uuid_str, this_moves, this_food, record,
+                    np.array(tools.selBest(population, k=1)[0], ndmin=2))
 
             # Update the progress bar
             bar_done_val = ((float(percent_done) / (100.0 * args.repeat)) +
@@ -310,7 +329,8 @@ def main():
 
     # Update the run configuration with total runtime
     total_time_s = time.time() - run_date
-    __updateRuntime(args, uuid_str, total_time_s)
+    if args.table_file != None:
+        __updateRuntime(args, uuid_str, total_time_s)
 
 
     logging.info("Run completed in " +

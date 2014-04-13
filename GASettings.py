@@ -1,8 +1,9 @@
+import logging
 from PySide import QtCore, QtGui
 
 class GASettings(QtCore.QSettings):
 
-    VERSION = 2
+    VERSION = 3
 
     # Defaults for items
     TRAIL_MOVES        = 325
@@ -17,6 +18,7 @@ class GASettings(QtCore.QSettings):
 
         self.__initSettings()
 
+
     def __exit__():
         self.writeSettings()
         self.sync()
@@ -27,7 +29,13 @@ class GASettings(QtCore.QSettings):
         QtCore.QCoreApplication.setApplicationName("Ant Trail")
 
     def __initSettings(self):
-        if self.value("version", 0) != self.VERSION:
+
+        if int(self.value("version", 0)) != self.VERSION:
+            logging.info("User settings is version " +
+                str(self.value("version")) +
+                " and present settings are at " +
+                str(self.VERSION) +
+                ". Re-initalizing user settings.")
             # Need to initalize the settings.
             self.clear()
 
@@ -37,6 +45,9 @@ class GASettings(QtCore.QSettings):
             self.setValue("generations", 200)
             self.setValue("auto_run", 30)
             self.setValue("default_file", "trails/john_muir_32.yaml")
+            self.setValue("network_idx", 0)
+            self.setValue("logging_enabled", 1)
+            self.setValue("logging_file", "data.h5")
             self.endGroup()
 
             self.beginGroup("trailUI")
@@ -51,6 +62,8 @@ class GASettings(QtCore.QSettings):
 
             self.setValue("version", self.VERSION)
 
-        self.sync()
+            self.sync()
+        else:
+            logging.debug("Settings are up to date!")
 
 

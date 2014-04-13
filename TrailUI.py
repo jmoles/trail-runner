@@ -74,8 +74,8 @@ class TrailUI(QtGui.QFrame):
         self.setSizePolicy(QtGui.QSizePolicy.Minimum,
             QtGui.QSizePolicy.Minimum)
 
-        self.__agent_delta = self.settings.value(TrailUI.AGENT_DELTA_S)
-        self.__grid_size   = self.settings.value(TrailUI.RECT_SIZE_S)
+        self.__agent_delta = int(self.settings.value(TrailUI.AGENT_DELTA_S))
+        self.__grid_size   = int(self.settings.value(TrailUI.RECT_SIZE_S))
 
         self.__last_filename = ""
 
@@ -97,8 +97,8 @@ class TrailUI(QtGui.QFrame):
 
     @QtCore.Slot(bool)
     def settingsUpdated(self):
-        self.__agent_delta = self.settings.value(TrailUI.AGENT_DELTA_S)
-        self.__grid_size   = self.settings.value(TrailUI.RECT_SIZE_S)
+        self.__agent_delta = int(self.settings.value(TrailUI.AGENT_DELTA_S))
+        self.__grid_size   = int(self.settings.value(TrailUI.RECT_SIZE_S))
 
         if self.timer.isActive():
             self.timer.stop()
