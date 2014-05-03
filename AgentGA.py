@@ -1,6 +1,7 @@
 from deap import tools
 import json
 import logging
+import os
 import subprocess
 import time
 import zmq
@@ -88,12 +89,8 @@ class AgentGA(QtCore.QThread):
         cmd_list.append("python")
         cmd_list.extend(["-m", "scoop"])
         cmd_list.extend(["--hosts", "localhost"])
-        #cmd_list.extend(["--hostfile", "hosts.txt"])
-        #cmd_list.extend(["-p", "/u/jmoles/workspace/tlab/python"])
-        cmd_list.extend(["-p", "/home/josh/Dropbox/GitHub/jmoles/python"])
-        # cmd_list.extend(["-n", "48"])
+        cmd_list.extend(["-p", str(os.getcwd())])
         cmd_list.extend(["-n", "8"])
-        cmd_list.extend(["--python-interpreter", "/usr/bin/python"])
         cmd_list.append("ga_runner.py")
         cmd_list.extend(["-g", str(self.gens)])
         cmd_list.extend(["-p", str(self.pop_size)])
@@ -110,7 +107,7 @@ class AgentGA(QtCore.QThread):
         HOST        = "tcp://localhost:9854"
         context     = zmq.Context()
         receiver    = context.socket(zmq.PULL)
-        zmq.ssh.tunnel.tunnel_connection(receiver, HOST, "localhost")
+        receiver.connect(HOST)
 
         gens_remain  = self.gens
         last_time_s = 0

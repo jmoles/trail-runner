@@ -7,6 +7,7 @@ import os.path
 import pickle
 import random
 import scoop
+import socket
 import string
 import sys
 import tables
@@ -30,6 +31,14 @@ root.setLevel(logging.INFO)
 # Pytables Stuff
 FILTERS=tables.Filters(complevel=5, complib='zlib', fletcher32=True)
 
+# Some constants
+P_BIT_MUTATE = 0.05
+TOURN_SIZE   = 3
+P_MUTATE     = 0.2
+P_CROSSOVER  = 0.5
+WEIGHT_MIN   = -5.0
+WEIGHT_MAX   = 5.0
+
 # Class for table layout
 class GAConf(tables.IsDescription):
     population_size    = tables.UInt16Col()
@@ -38,7 +47,16 @@ class GAConf(tables.IsDescription):
     date               = tables.Time32Col()
     uuid4              = tables.StringCol(len(str(uuid.uuid4())))
     runtime_sec        = tables.Time32Col()
+    trail              = tables.StringCol(128)
+    prob_mutate_bit    = tables.Float32Col()
+    mutate_type        = tables.StringCol(32)
+    prob_mutate        = tables.Float32Col()
+    prob_crossover     = tables.Float32Col()
+    tourn_size         = tables.UInt16Col()
+    weight_min         = tables.Float32Col()
+    weight_max         = tables.Float32Col()
     network            = tables.StringCol(64)
+    hostname           = tables.StringCol(64)
 
 class GARun(tables.IsDescription):
     generation         = tables.UInt16Col()
@@ -76,12 +94,25 @@ def __prepareTable(args, time_now, uuid_s, network_s, params_len):
 
         row = conf_table.row
 
+        at = AgentTrail()
+        at.readTrail(trail)
+
         row['population_size'] = args.population
         row['max_moves']       = args.moves
         row['num_gens']        = args.generations
         row['date']            = time_now
         row['uuid4']           = uuid_s
         row['network']         = network_s
+        row['trail']           = at.getName()
+        row['prob_mutate_bit'] = P_BIT_MUTATE
+        row['mutate_type']     = "mutFlipBit"  # TODO: Update if type changes
+        row['prob_mutate']     = P_MUTATE
+        row['prob_crossover']  = P_CROSSOVER
+        row['tourn_size']      = TOURN_SIZE
+        row['weight_min']      = WEIGHT_MIN
+        row['weight_max']      = WEIGHT_MAX
+        row['network']         = AgentNetwork(network_type).getStringName()
+        row['hostname']        = socket.getfqdn()
 
         row.append()
         conf_table.flush()
@@ -121,11 +152,11 @@ def __updateRuntime(args, uuid_s, runtime_i):
             conf_table.cols.runtime_sec[index] = runtime_i
             conf_table.flush()
 
-def __recordRun(args, gen_i, runtime_i, uuid_s, moves_hof_i, food_hof_i, record_l, hof_individual_npa):
+def __recordRun(args, gen_i, runtime_i, uuid_s, moves_hof_i, food_hof_i, record_l, 
+    hof_individual_npa=None):
     with tables.openFile(args.table_file, mode="a",
         filters=FILTERS) as fileh:
         indiv_table = fileh.getNode("/john_muir/run_stats")
-        tables_array = fileh.getNode("/john_muir/hof/" + uuid_s)
 
         row = indiv_table.row
 
@@ -142,7 +173,10 @@ def __recordRun(args, gen_i, runtime_i, uuid_s, moves_hof_i, food_hof_i, record_
         row['moves_avg']   = record_l["moves"]["avg"]
         row['moves_max']   = record_l["moves"]["max"]
         row['moves_std']   = record_l["moves"]["std"]
-        tables_array.append(hof_individual_npa)
+
+        if hof_individual_npa is not None:
+            tables_array = fileh.getNode("/john_muir/hof/" + uuid_s)
+            tables_array.append(hof_individual_npa)
 
         row.append()
         indiv_table.flush()
@@ -191,12 +225,11 @@ def main():
         default=1,
         help=textwrap.dedent('''Network type to use. Valid options are:
   0: Jefferson 2,5,4 NN v1
-  1: Jefferson w/ Manual DL 10,5,4 NN v1'''),
-        choices=range(0,2))
+  1: Jefferson w/ Manual DL 10,5,4 NN v1
+  2: Jefferson-like MDL5 10,1,4 NN v1'''),
+        choices=range(0,3))
     parser.add_argument("-t", "--trail", type=str, nargs="?",
         default="trails/john_muir_32.yaml", help="Trail file to read.")
-    parser.add_argument("-c", "--checkpoint-file", type=str, nargs="?",
-        help="Checkpoint file to load from last run.")
     parser.add_argument("-z", "--enable-zmq-updates", action='store_true',
         help="Enable use of ZMQ messaging for real-time GUI monitoring.")
     parser.add_argument("-f", "--table-file", type=str,
@@ -214,7 +247,11 @@ def main():
     run_date = time.time()
 
     term = TerminalController()
-    progress = ProgressBar(term, 'Running Genetic Algorithm')
+    try:
+        progress = ProgressBar(term, 'Running Genetic Algorithm')
+    except ValueError:
+        logging.warning("Unable to use ProgressBar on this platform.")
+        progress = None
 
     for curr_repeat in range(0, args.repeat):
 
@@ -231,7 +268,7 @@ def main():
 
         toolbox = base.Toolbox()
         toolbox.register("map", scoop.futures.map)
-        toolbox.register("attr_float", random.uniform, a=-5, b=5)
+        toolbox.register("attr_float", random.uniform, a=WEIGHT_MIN, b=WEIGHT_MAX)
         toolbox.register("individual", tools.initRepeat, creator.Individual,
             toolbox.attr_float, n=len(AgentNetwork(args.network).network.params))
         toolbox.register("population", tools.initRepeat, list,
@@ -240,8 +277,8 @@ def main():
         toolbox.register("evaluate", __singleMazeTask, moves=args.moves,
             trail=args.trail, network_type=args.network)
         toolbox.register("mate", tools.cxTwoPoint)
-        toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
-        toolbox.register("select", tools.selTournament, tournsize=3)
+        toolbox.register("mutate", tools.mutFlipBit, indpb=P_BIT_MUTATE)
+        toolbox.register("select", tools.selTournament, tournsize=TOURN_SIZE)
 
         # Start a new evolution
         population = toolbox.population(n=args.population)
@@ -273,7 +310,7 @@ def main():
 
             # Vary the pool of individuals
             offspring = algorithms.varAnd(offspring, toolbox,
-                cxpb=0.5, mutpb=0.2)
+                cxpb=P_CROSSOVER, mutpb=P_MUTATE)
 
             # Evaluate the individuals with an invalid fitness
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
@@ -320,12 +357,15 @@ def main():
                     np.array(tools.selBest(population, k=1)[0], ndmin=2))
 
             # Update the progress bar
-            bar_done_val = ((float(percent_done) / (100.0 * args.repeat)) +
-                (float(curr_repeat)) / (float(args.repeat)))
-            progress.update(bar_done_val,
-                "on generation %d / %d of repeat %d / %d" % (gen,
-                    args.generations, curr_repeat + 1, args.repeat))
-
+            if progress:
+                bar_done_val = ((float(percent_done) / (100.0 * args.repeat)) +
+                    (float(curr_repeat)) / (float(args.repeat)))
+                progress.update(bar_done_val,
+                    "on generation %d / %d of repeat %d / %d" % (gen,
+                        args.generations, curr_repeat + 1, args.repeat))
+            else:
+                logging.info("on generation %d / %d of repeat %d / %d" % (gen,
+                        args.generations, curr_repeat + 1, args.repeat))
 
     # Update the run configuration with total runtime
     total_time_s = time.time() - run_date

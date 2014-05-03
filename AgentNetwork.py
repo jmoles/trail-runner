@@ -4,9 +4,11 @@ import numpy as np
 class NetworkTypes:
     JEFFERSON = 0
     JEFF_M_DL_10_5_4_V1 = 1
+    JEFF_M_DL_10_1_4_V1 = 2
     STRINGS = [
         "Jefferson 2,5,4 NN v1",
-        "Jefferson-like MDL5 10,5,4 NN v1"
+        "Jefferson-like MDL5 10,5,4 NN v1",
+        "Jefferson-like MDL5 10,1,4 NN v1"
     ]
 
 class AgentNetwork:
@@ -26,6 +28,35 @@ class AgentNetwork:
 
             inLayer = LinearLayer(10)
             hiddenLayer = SigmoidLayer(5)
+            outputLayer = LinearLayer(4)
+
+            self.network.addInputModule(inLayer)
+            self.network.addModule(hiddenLayer)
+            self.network.addOutputModule(outputLayer)
+
+            self.in_to_hidden     = FullConnection(inLayer, hiddenLayer)
+            self.in_to_out        = FullConnection(inLayer, outputLayer)
+            self.hidden_to_out    = FullConnection(hiddenLayer, outputLayer)
+
+            self.network.addConnection(self.in_to_hidden)
+            self.network.addConnection(self.hidden_to_out)
+            self.network.addConnection(self.in_to_out)
+
+            self.network.sortModules()
+
+            self.__params_length = len(self.network.params)
+
+
+        elif self.network_type == NetworkTypes.JEFF_M_DL_10_1_4_V1:
+            # Initalize the history with all trues
+            for _ in range(0,5):
+                self.__history.append(False)
+
+            # Build a delay line neural network.
+            self.network = FeedForwardNetwork()
+
+            inLayer = LinearLayer(10)
+            hiddenLayer = SigmoidLayer(1)
             outputLayer = LinearLayer(4)
 
             self.network.addInputModule(inLayer)
@@ -95,7 +126,8 @@ class AgentNetwork:
 
             return np.argmax(result)
 
-        elif self.network_type == NetworkTypes.JEFF_M_DL_10_5_4_V1:
+        elif (self.network_type == NetworkTypes.JEFF_M_DL_10_5_4_V1 or 
+            self.network_type == NetworkTypes.JEFF_M_DL_10_1_4_V1):
             result = 0
             history_numeric = []
 

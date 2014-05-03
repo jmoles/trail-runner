@@ -154,6 +154,14 @@ class AgentTrail:
         """
         return (self.__food_consumed, self.__food_total - self.__food_consumed)
 
+    def getName(self):
+        """ Returns the friendly name of this trail.
+
+        Returns:
+            str. Friendly name of the trail.
+        """
+        return self.__trail_name
+
     def __squareAhead(self):
         """ Determines the square in front of the agent based off present position.
 
