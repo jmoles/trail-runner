@@ -16,7 +16,7 @@ import time
 import uuid
 import zmq
 
-from AgentNetwork import AgentNetwork
+from AgentNetwork import AgentNetwork, NetworkTypes
 from AgentTrail import AgentTrail
 from  ProgressBar import *
 
@@ -95,7 +95,7 @@ def __prepareTable(args, time_now, uuid_s, network_s, params_len):
         row = conf_table.row
 
         at = AgentTrail()
-        at.readTrail(trail)
+        at.readTrail(args.trail)
 
         row['population_size'] = args.population
         row['max_moves']       = args.moves
@@ -111,7 +111,6 @@ def __prepareTable(args, time_now, uuid_s, network_s, params_len):
         row['tourn_size']      = TOURN_SIZE
         row['weight_min']      = WEIGHT_MIN
         row['weight_max']      = WEIGHT_MAX
-        row['network']         = AgentNetwork(network_type).getStringName()
         row['hostname']        = socket.getfqdn()
 
         row.append()
@@ -210,6 +209,13 @@ def __singleMazeTask(individual, moves, trail, network_type):
     return (at.getFoodConsumed(), num_moves)
 
 def main():
+    # Build some data for arguments output.
+    network_types_s = ""
+    network_num   = 0
+    for curr_s in NetworkTypes.STRINGS:
+        network_types_s += "\t" + str(network_num) + ":" + curr_s + "\n"
+        network_num += 1
+
     # Parse the arguments
     parser = argparse.ArgumentParser(
         description="Launches SCOOP parallelized version "
@@ -223,11 +229,9 @@ def main():
         default=325, help="Maximum moves for agent.")
     parser.add_argument("-n", "--network", type=int, nargs="?",
         default=1,
-        help=textwrap.dedent('''Network type to use. Valid options are:
-  0: Jefferson 2,5,4 NN v1
-  1: Jefferson w/ Manual DL 10,5,4 NN v1
-  2: Jefferson-like MDL5 10,1,4 NN v1'''),
-        choices=range(0,3))
+        help=textwrap.dedent("Network type to use. Valid options are:\n" + 
+            network_types_s),
+        choices=range(0,len(NetworkTypes.STRINGS)))
     parser.add_argument("-t", "--trail", type=str, nargs="?",
         default="trails/john_muir_32.yaml", help="Trail file to read.")
     parser.add_argument("-z", "--enable-zmq-updates", action='store_true',
@@ -294,7 +298,7 @@ def main():
         mstats.register("std", np.std)
 
         if args.table_file != None:
-            __prepareTable(args, run_date, uuid_str,
+            __prepareTable(args, time.time(), uuid_str,
                 AgentNetwork(args.network).getStringName(), AgentNetwork(args.network).getParamsLength())
 
         # Begin the generational process
