@@ -19,7 +19,12 @@ import pandas as pd
 
 from AgentNetwork import AgentNetwork, NetworkTypes
 from AgentTrail import AgentTrail
-from  ProgressBar import *
+
+try: 
+    import progressbar
+except ImportError: 
+    logging.warning("progressbar2 library is not avaialble. " + 
+        "Try 'pip install progressbar2'")
 
 # Configure DEAP
 creator.create("FitnessMulti", base.Fitness, weights=(1,-1))
@@ -136,12 +141,13 @@ def main():
     at.readTrail(args.trail)
     trail_name = at.getName()
 
-    term = TerminalController()
     try:
-        progress = ProgressBar(term, 'Running Genetic Algorithm')
-    except ValueError:
-        logging.warning("Unable to use ProgressBar on this platform.")
-        progress = None
+        widgets = ['Processed: ', progressbar.Percentage(), ' ',
+            progressbar.Bar(marker=progressbar.RotatingMarker()),
+            ' ', progressbar.ETA()]
+        pbar = progressbar.ProgressBar(widgets=widgets, maxval=100).start()
+    except:
+        pbar = None
 
     df_single = pd.DataFrame(np.random.randn(args.generations,11), columns=[
             'runtime_s', 'hof_moves', 'hof_food', 
@@ -262,12 +268,10 @@ def main():
                 best_moves = this_moves
 
             # Update the progress bar
-            if progress:
+            if pbar:
                 bar_done_val = ((float(percent_done) / (100.0 * args.repeat)) +
                     (float(curr_repeat)) / (float(args.repeat)))
-                progress.update(bar_done_val,
-                    "on generation %d / %d of repeat %d / %d" % (gen,
-                        args.generations, curr_repeat + 1, args.repeat))
+                pbar.update(bar_done_val * 100)
             else:
                 logging.info("on generation %d / %d of repeat %d / %d" % (gen,
                         args.generations, curr_repeat + 1, args.repeat))
@@ -312,6 +316,7 @@ def main():
 
 
     # Calculate and display the total runtime
+    pbar.finish()
     total_time_s = time.time() - run_date
 
     logging.info("Run completed in " +
