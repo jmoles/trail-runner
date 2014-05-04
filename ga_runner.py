@@ -1,4 +1,5 @@
 import argparse
+import datetime
 from deap import algorithms, base, creator, tools
 import json
 import logging
@@ -278,8 +279,10 @@ def main():
 
         # Record the statistics on this run.
         if not args.disable_logging:
+            log_time = datetime.datetime.now()
+
             store_fname = (data_dir + "runs/" +
-                time.strftime("%Y%m%d_%H%M%S") + ".h5")
+                log_time.strftime("%Y%m%d_%H%M%S") + ".h5")
             store = pd.HDFStore(store_fname, complib='zlib', complevel=9)
             store['gens'] = df_single
             store['hof']  = pd.DataFrame(hof_array)
@@ -295,7 +298,7 @@ def main():
 
             with open('data/summary.csv', 'a') as fileh:
                 pd.DataFrame({
-                    'run_date'     : pd.Timestamp.now(),
+                    'run_date'     : pd.to_datetime(log_time),
                     'pop_size'     : args.population,
                     'max_moves'    : args.moves,
                     'gen_count'    : args.generations,
