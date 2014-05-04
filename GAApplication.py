@@ -17,7 +17,7 @@ class Communicate(QtCore.QObject):
     newFile  = QtCore.Signal(str)
     newSpeed = QtCore.Signal(int)
     newProg  = QtCore.Signal(int)
-    newLogFile = QtCore.Signal(str)
+    newLogDir = QtCore.Signal(str)
 
 class GAApplication(QtGui.QMainWindow):
 
@@ -37,7 +37,7 @@ class GAApplication(QtGui.QMainWindow):
         self.auto_run = int(self.settings.value("auto_run"))
         self.__network_idx = int(self.settings.value("network_idx"))
         self.__log_en   = bool(int(self.settings.value("logging_enabled")))
-        self.__log_file = self.settings.value("logging_file")
+        self.__log_dir = self.settings.value("logging_dir")
         self.settings.endGroup()
 
         # UI Elements
@@ -47,7 +47,7 @@ class GAApplication(QtGui.QMainWindow):
         self.auto_run_box = ()
         self.__network_type_combo = ()
         self.__logging_box  = ()
-        self.__logging_file_button = ()
+        self.__logging_dir_button = ()
         self.run_button   = ()
         self.reset_button = ()
         self.progress_bar = ()
@@ -114,7 +114,7 @@ class GAApplication(QtGui.QMainWindow):
         self.settings.setValue("network_idx", self.__network_type_combo.currentIndex())
         self.settings.setValue("logging_enabled",
             int(self.__logging_box.isChecked()))
-        self.settings.setValue("logging_file", self.__log_file)
+        self.settings.setValue("logging_file", self.__log_dir)
         self.settings.endGroup()
 
     def readSettings(self):
@@ -173,10 +173,10 @@ class GAApplication(QtGui.QMainWindow):
         self.__logging_box  = QtGui.QCheckBox("Log")
         self.__logging_box.setChecked(self.__log_en)
 
-        self.__logging_file_button = QtGui.QPushButton(
-            ntpath.basename(self.__log_file))
-        self.__logging_file_button.clicked.connect(self.__openLogfile)
-        self.__logging_file_button.setEnabled(self.__log_en)
+        self.__logging_dir_button = QtGui.QPushButton(
+            ntpath.basename(self.__log_dir))
+        self.__logging_dir_button.clicked.connect(self.__openLogDir)
+        self.__logging_dir_button.setEnabled(self.__log_en)
 
         self.run_button   = QtGui.QPushButton("Run")
         self.run_button.clicked.connect(self.__runGA)
@@ -191,7 +191,7 @@ class GAApplication(QtGui.QMainWindow):
         layout.addRow(QtGui.QLabel("Generations"), self.gen_box)
         layout.addRow(QtGui.QLabel("Auto Run"), self.auto_run_box)
         layout.addRow(QtGui.QLabel("Network"), self.__network_type_combo)
-        layout.addRow(self.__logging_box, self.__logging_file_button)
+        layout.addRow(self.__logging_box, self.__logging_dir_button)
         layout.addRow(self.run_button, self.reset_button)
 
         content = QtGui.QWidget()
@@ -230,7 +230,7 @@ class GAApplication(QtGui.QMainWindow):
         self.c.newFile[str].connect(self.antTrail.loadGrid)
 
         # Connect the signal/slot for the logging file settings
-        self.c.newLogFile[str].connect(self.__updateLogFile)
+        self.c.newLogDir[str].connect(self.__updateLogFile)
         self.__logging_box.stateChanged[int].connect(self.__logCheckChanged)
 
         # Connect the signal/slot for the events when thread starts or stops.
@@ -257,17 +257,19 @@ class GAApplication(QtGui.QMainWindow):
             # Menu was cancelled. Just resume
             self.antTrail.resume()
 
-    def __openLogfile(self):
-        filename, _ = QtGui.QFileDialog.getOpenFileName(self,
-            str("Open Data File"), ".",
-            str("Hierarchial Data Format (*.hdf *.h5 *.hd5 *.he5;;"
-                "All Files(*)"))
+    def __openLogDir(self):
+        dirname = QtGui.QFileDialog.getExistingDirectory(self,
+            str("Open Data Directory"), ".",
+            (QtGui.QFileDialog.ShowDirsOnly or
+            QtGui.QFileDialog.DontResolveSymlinks))
 
-        if filename != "":
-            self.c.newLogFile.emit(filename)
-            self.__log_file = filename
+        if dirname != "":
+            logging.debug(dirname + " was selected.")
+            self.c.newLogDir.emit(dirname)
+            self.__log_dir = dirname
         else:
             # Menu was cancelled. Just quit
+            logging.debug("Menu was cancelled")
             pass
 
     def __runGA(self):
@@ -284,7 +286,7 @@ class GAApplication(QtGui.QMainWindow):
             self.__log_en       = self.__logging_box.isChecked()
 
             if self.__log_en:
-                logfile = self.__log_file
+                logfile = self.__log_dir
             else:
                 logfile = None
 
@@ -294,7 +296,7 @@ class GAApplication(QtGui.QMainWindow):
                 self.gens,
                 self.auto_run,
                 network=self.__network_idx,
-                log_file=logfile)
+                log_dir=logfile)
             self.ga_thread.start()
         else:
             self.ga_thread.stop()
@@ -371,14 +373,14 @@ class GAApplication(QtGui.QMainWindow):
 
     @QtCore.Slot(str)
     def __updateLogFile(self, new_log):
-        """ Updates the log file currently in use and UI button.
+        """ Updates the log file directory currently in use and UI button.
 
         Args:
-        new_log (str): New log file to record data in.
+        new_log (str): New directory to record data in.
         """
 
-        self.__log_file = new_log
-        self.__logging_file_button.setText(
+        self.__log_dir = new_log
+        self.__logging_dir_button.setText(
             ntpath.basename(new_log))
 
 
@@ -386,9 +388,9 @@ class GAApplication(QtGui.QMainWindow):
     def __logCheckChanged(self, check_state):
 
         if check_state == QtCore.Qt.CheckState.Checked:
-            self.__logging_file_button.setEnabled(True)
+            self.__logging_dir_button.setEnabled(True)
         else:
-            self.__logging_file_button.setEnabled(False)
+            self.__logging_dir_button.setEnabled(False)
 
 
 

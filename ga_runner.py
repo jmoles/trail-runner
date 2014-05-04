@@ -10,11 +10,12 @@ import scoop
 import socket
 import string
 import sys
-import tables
 import textwrap
 import time
 import uuid
 import zmq
+
+import pandas as pd
 
 from AgentNetwork import AgentNetwork, NetworkTypes
 from AgentTrail import AgentTrail
@@ -28,9 +29,6 @@ creator.create("Individual", list, fitness=creator.FitnessMulti)
 root = logging.getLogger()
 root.setLevel(logging.INFO)
 
-# Pytables Stuff
-FILTERS=tables.Filters(complevel=5, complib='zlib', fletcher32=True)
-
 # Some constants
 P_BIT_MUTATE = 0.05
 TOURN_SIZE   = 3
@@ -39,147 +37,22 @@ P_CROSSOVER  = 0.5
 WEIGHT_MIN   = -5.0
 WEIGHT_MAX   = 5.0
 
-# Class for table layout
-class GAConf(tables.IsDescription):
-    population_size    = tables.UInt16Col()
-    max_moves          = tables.UInt16Col()
-    num_gens           = tables.UInt16Col()
-    date               = tables.Time32Col()
-    uuid4              = tables.StringCol(len(str(uuid.uuid4())))
-    runtime_sec        = tables.Time32Col()
-    trail              = tables.StringCol(128)
-    prob_mutate_bit    = tables.Float32Col()
-    mutate_type        = tables.StringCol(32)
-    prob_mutate        = tables.Float32Col()
-    prob_crossover     = tables.Float32Col()
-    tourn_size         = tables.UInt16Col()
-    weight_min         = tables.Float32Col()
-    weight_max         = tables.Float32Col()
-    network            = tables.StringCol(64)
-    hostname           = tables.StringCol(64)
-
-class GARun(tables.IsDescription):
-    generation         = tables.UInt16Col()
-    runtime_sec        = tables.UInt32Col()
-    uuid4              = tables.StringCol(len(str(uuid.uuid4())))
-    moves_hof          = tables.UInt16Col()
-    food_hof           = tables.UInt16Col()
-    food_min           = tables.UInt16Col()
-    food_avg           = tables.UInt16Col()
-    food_max           = tables.UInt16Col()
-    food_std           = tables.UInt16Col()
-    moves_min          = tables.UInt16Col()
-    moves_avg          = tables.UInt16Col()
-    moves_max          = tables.UInt16Col()
-    moves_std          = tables.UInt16Col()
-
-def __prepareTable(args, time_now, uuid_s, network_s, params_len):
-    # Record the configuration for this run.
-    with tables.openFile(args.table_file, mode="a",
-        filters=FILTERS) as fileh:
-        try:
-            fileh.getNode("/john_muir")
-        except tables.NoSuchNodeError:
-            logging.debug("Creating /join_muir group....")
-            fileh.createGroup("/", 'john_muir',
-                'John Muir (Jefferson) Trail')
-
-        try:
-            conf_table = fileh.getNode("/john_muir/run_conf")
-        except tables.NoSuchNodeError:
-            logging.debug(
-                "Creating /john_muir/run_conf table...")
-            conf_table = fileh.createTable("/john_muir/",
-                "run_conf", GAConf)
-
-        row = conf_table.row
-
-        at = AgentTrail()
-        at.readTrail(args.trail)
-
-        row['population_size'] = args.population
-        row['max_moves']       = args.moves
-        row['num_gens']        = args.generations
-        row['date']            = time_now
-        row['uuid4']           = uuid_s
-        row['network']         = network_s
-        row['trail']           = at.getName()
-        row['prob_mutate_bit'] = P_BIT_MUTATE
-        row['mutate_type']     = "mutFlipBit"  # TODO: Update if type changes
-        row['prob_mutate']     = P_MUTATE
-        row['prob_crossover']  = P_CROSSOVER
-        row['tourn_size']      = TOURN_SIZE
-        row['weight_min']      = WEIGHT_MIN
-        row['weight_max']      = WEIGHT_MAX
-        row['hostname']        = socket.getfqdn()
-
-        row.append()
-        conf_table.flush()
-
-        # Do some checking prior to entering loop.
-        try:
-            fileh.getNode("/john_muir/run_stats")
-        except tables.NoSuchNodeError:
-            logging.debug(
-                "Creating /john_muir/run_stats table...")
-            fileh.createTable("/john_muir/", "run_stats", GARun)
-
-        try:
-            fileh.getNode("/john_muir/hof")
-        except tables.NoSuchNodeError:
-            logging.debug(
-                "Creating /john_muir/hof group...")
-            fileh.createGroup("/john_muir/", "hof",
-                "Hall of Fame for Runs")
-
-        try:
-            fileh.getNode("/john_muir/hof/" + uuid_s)
-        except tables.NoSuchNodeError:
-            logging.debug("Creating new hall of fame array for " +
-                uuid_s + ".")
-            fileh.createEArray("/john_muir/hof/",
-                name = uuid_s,
-                atom = tables.Float64Col(),
-                shape = (0, params_len),
-                expectedrows = args.generations)
-
-def __updateRuntime(args, uuid_s, runtime_i):
-    with tables.openFile(args.table_file, mode="a",
-        filters=FILTERS) as fileh:
-            conf_table = fileh.root.john_muir.run_conf
-            index = conf_table.getWhereList('uuid4=="' + uuid_s + '"')[0]
-            conf_table.cols.runtime_sec[index] = runtime_i
-            conf_table.flush()
-
-def __recordRun(args, gen_i, runtime_i, uuid_s, moves_hof_i, food_hof_i, record_l, 
+def __recordSingleRun(df, gen_i, runtime_i, moves_hof_i, food_hof_i, record_l, 
     hof_individual_npa=None):
-    with tables.openFile(args.table_file, mode="a",
-        filters=FILTERS) as fileh:
-        indiv_table = fileh.getNode("/john_muir/run_stats")
 
-        row = indiv_table.row
-
-        row['generation']  = gen_i
-        row['runtime_sec'] = runtime_i
-        row['uuid4']       = uuid_s
-        row['moves_hof']   = moves_hof_i
-        row['food_hof']    = food_hof_i
-        row['food_min']    = record_l["food"]["min"]
-        row['food_avg']    = record_l["food"]["avg"]
-        row['food_max']    = record_l["food"]["max"]
-        row['food_std']    = record_l["food"]["std"]
-        row['moves_min']   = record_l["moves"]["min"]
-        row['moves_avg']   = record_l["moves"]["avg"]
-        row['moves_max']   = record_l["moves"]["max"]
-        row['moves_std']   = record_l["moves"]["std"]
-
-        if hof_individual_npa is not None:
-            tables_array = fileh.getNode("/john_muir/hof/" + uuid_s)
-            tables_array.append(hof_individual_npa)
-
-        row.append()
-        indiv_table.flush()
-
+    df.iloc[gen_i-1,:]=[
+        runtime_i,
+        moves_hof_i,
+        food_hof_i,
+        record_l["food"]["min"],
+        record_l["food"]["avg"],
+        record_l["food"]["max"],
+        record_l["food"]["std"],
+        record_l["moves"]["min"],
+        record_l["moves"]["avg"],
+        record_l["moves"]["max"],
+        record_l["moves"]["std"]
+    ]
 
 def __singleMazeTask(individual, moves, trail, network_type):
     an = AgentNetwork(network_type)
@@ -236,19 +109,32 @@ def main():
         default="trails/john_muir_32.yaml", help="Trail file to read.")
     parser.add_argument("-z", "--enable-zmq-updates", action='store_true',
         help="Enable use of ZMQ messaging for real-time GUI monitoring.")
-    parser.add_argument("-f", "--table-file", type=str,
-        nargs="?",
-        help="File to save table data in.")
     parser.add_argument("-r", "--repeat", type=int, nargs="?",
         default=1, help="Number of times to run simulations.")
+    parser.add_argument("--data-dir", type=str, nargs="?",
+        default="data", help="Data directory.")
+    parser.add_argument("--disable-logging",
+        action='store_true')
     args = parser.parse_args()
 
-    if not args.table_file:
-        logging.warning("No table file was specified. These runs will "
-            "not get recorded in the logging database.")
-        time.sleep(3)
-
     run_date = time.time()
+
+    # Check if data directories exist and sanatize name.
+    if not args.disable_logging:
+        if not os.path.isdir(args.data_dir):
+            logging.critical("Specified data directory does not exist.")
+            sys.exit(1)
+
+        data_dir = os.path.normpath(args.data_dir) + "/"
+
+        # Create the runs directory in data if it doesn't exist.
+        if not os.path.isdir(data_dir + "runs"):
+            os.mkdir(data_dir + "runs")
+
+    # Get the name of this agent trail for later use
+    at = AgentTrail()
+    at.readTrail(args.trail)
+    trail_name = at.getName()
 
     term = TerminalController()
     try:
@@ -257,7 +143,20 @@ def main():
         logging.warning("Unable to use ProgressBar on this platform.")
         progress = None
 
+    df_single = pd.DataFrame(np.random.randn(args.generations,11), columns=[
+            'runtime_s', 'hof_moves', 'hof_food', 
+            'food_min', 'food_avg', 'food_max', 'food_std',
+            'moves_min', 'moves_avg', 'moves_max', 'moves_std'])
+
+    best_food = 0
+    best_moves = sys.maxint
+
     for curr_repeat in range(0, args.repeat):
+        repeat_start_time = time.time()
+
+        # Prepare the array for storing hall of fame.
+        hof_array = np.zeros((args.generations, 
+            AgentNetwork(args.network).getParamsLength()))
 
         if(args.enable_zmq_updates):
             # Configure ZMQ - Publisher role
@@ -296,10 +195,6 @@ def main():
         mstats.register("avg", np.mean)
         mstats.register("max", np.max)
         mstats.register("std", np.std)
-
-        if args.table_file != None:
-            __prepareTable(args, time.time(), uuid_str,
-                AgentNetwork(args.network).getStringName(), AgentNetwork(args.network).getParamsLength())
 
         # Begin the generational process
         for gen in range(1, args.generations + 1):
@@ -354,11 +249,17 @@ def main():
                 population, k=1)[0],
                 args.moves, args.trail, args.network)
 
-            # Record data in the table.
-            if args.table_file != None:
-                __recordRun(args, gen, time.time() - gen_start_time,
-                    uuid_str, this_moves, this_food, record,
-                    np.array(tools.selBest(population, k=1)[0], ndmin=2))
+            # Store and update statistics.
+            __recordSingleRun(df_single, gen, time.time() - gen_start_time,
+                this_moves, this_food, record)
+
+            hof_array[gen - 1] = np.array(tools.selBest(population, k=1)[0])
+
+            if this_food > best_food:
+                best_food = this_food
+
+            if this_moves < best_moves:
+                best_moves = this_moves
 
             # Update the progress bar
             if progress:
@@ -371,11 +272,47 @@ def main():
                 logging.info("on generation %d / %d of repeat %d / %d" % (gen,
                         args.generations, curr_repeat + 1, args.repeat))
 
-    # Update the run configuration with total runtime
-    total_time_s = time.time() - run_date
-    if args.table_file != None:
-        __updateRuntime(args, uuid_str, total_time_s)
+        # Record the statistics on this run.
+        if not args.disable_logging:
+            store_fname = (data_dir + "runs/" +
+                time.strftime("%Y%m%d_%H%M%S") + ".h5")
+            store = pd.HDFStore(store_fname, complib='zlib', complevel=9)
+            store['gens'] = df_single
+            store['hof']  = pd.DataFrame(hof_array)
+            store.close()
 
+            try:
+                df_summary = pd.read_csv(data_dir + "summary.csv")
+                next_idx = max(df_summary.index) + 1
+                do_header = False
+            except:
+                next_idx = 0
+                do_header = True
+
+            with open('data/summary.csv', 'a') as fileh:
+                pd.DataFrame({
+                    'run_date'     : pd.Timestamp.now(),
+                    'pop_size'     : args.population,
+                    'max_moves'    : args.moves,
+                    'gen_count'    : args.generations,
+                    'runtime_s'    : time.time() - repeat_start_time,
+                    'trail_file'   : trail_name,
+                    'p_mutate_bit' : P_BIT_MUTATE,
+                    'mutate_type'  : "mutFlipBit", #TODO: Update if this type changes.
+                    'p_mutate'     : P_MUTATE,
+                    'p_crossover'  : P_CROSSOVER,
+                    'tourn_size'   : TOURN_SIZE,
+                    'weight_min'   : WEIGHT_MIN,
+                    'weight_max'   : WEIGHT_MAX,
+                    'network_name' : AgentNetwork(args.network).getStringName(),
+                    'hostname'     : socket.getfqdn(),
+                    'max_food'     : best_food,
+                    'min_moves'    : best_moves
+                }, index=[next_idx]).to_csv(fileh, header=do_header)
+
+
+    # Calculate and display the total runtime
+    total_time_s = time.time() - run_date
 
     logging.info("Run completed in " +
         time.strftime('%H:%M:%S', time.gmtime(total_time_s)) + ".")

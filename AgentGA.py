@@ -20,7 +20,7 @@ class Communicate(QtCore.QObject):
 class AgentGA(QtCore.QThread):
 
     def __init__(self, bar=None, gen_label=None, time_label=None,
-        network=0, log_file=None):
+        network=0, log_dir=None):
         super(AgentGA, self).__init__()
         self.filename   = ""
         self.moves      = 0
@@ -28,7 +28,7 @@ class AgentGA(QtCore.QThread):
         self.gens       = 0
         self.auto_run   = 0
         self.__network  = network
-        self.__log_file = log_file
+        self.__log_dir = log_dir
 
         # Communicate class
         self.c          = Communicate()
@@ -54,14 +54,14 @@ class AgentGA(QtCore.QThread):
             self.proc.wait()
 
     def setVars(self, filename, moves, pop, gens, auto_run,
-        network=0, log_file=None):
+        network=0, log_dir=None):
         self.filename   = filename
         self.moves      = moves
         self.pop_size   = pop
         self.gens       = gens
         self.auto_run   = auto_run
         self.__network  = network
-        self.__log_file = log_file
+        self.__log_dir = log_dir
 
     def run(self):
         self.mutex.lock()
@@ -96,9 +96,10 @@ class AgentGA(QtCore.QThread):
         cmd_list.extend(["-p", str(self.pop_size)])
         cmd_list.extend(["-m", str(self.moves)])
         cmd_list.extend(["-n", str(self.__network)])
+        cmd_list.extend(["--data-dir", str(self.__log_dir)])
 
-        if self.__log_file:
-            cmd_list.extend(["-f", str(self.__log_file)])
+        if not self.__log_dir:
+            cmd_list.extend(['--disable-logging'])
 
         cmd_list.extend(["-z"])
         self.proc = subprocess.Popen(cmd_list)
