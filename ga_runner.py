@@ -281,13 +281,6 @@ def main():
         if not args.disable_logging:
             log_time = datetime.datetime.now()
 
-            store_fname = (data_dir + "runs/" +
-                log_time.strftime("%Y%m%d_%H%M%S") + ".h5")
-            store = pd.HDFStore(store_fname, complib='zlib', complevel=9)
-            store['gens'] = df_single
-            store['hof']  = pd.DataFrame(hof_array)
-            store.close()
-
             try:
                 df_summary = pd.read_csv(data_dir + "summary.csv")
                 next_idx = max(df_summary.index) + 1
@@ -296,11 +289,10 @@ def main():
                 next_idx = 0
                 do_header = True
 
-            with open('data/summary.csv', 'a') as fileh:
-                pd.DataFrame({
+            df_summary = pd.DataFrame({
                     'run_date'     : pd.to_datetime(log_time),
                     'pop_size'     : args.population,
-                    'max_moves'    : args.moves,
+                    'moves_limit'  : args.moves,
                     'gen_count'    : args.generations,
                     'runtime_s'    : time.time() - repeat_start_time,
                     'trail_file'   : trail_name,
@@ -313,9 +305,22 @@ def main():
                     'weight_max'   : WEIGHT_MAX,
                     'network_name' : AgentNetwork(args.network).getStringName(),
                     'hostname'     : socket.getfqdn(),
-                    'max_food'     : best_food,
-                    'min_moves'    : best_moves
-                }, index=[next_idx]).to_csv(fileh, header=do_header)
+                    'best_food'    : best_food,
+                    'best_moves'   : best_moves
+                }, index=[next_idx])
+
+            store_fname = (data_dir + "runs/" +
+                log_time.strftime("%Y%m%d_%H%M%S"))
+            store = pd.HDFStore(store_fname + ".h5", complib='zlib', complevel=9)
+            store['gens']    = df_single
+            store['hof']     = pd.DataFrame(hof_array)
+            store.close()
+
+            with open('data/summary.csv', 'a') as fileh:
+                df_summary.to_csv(fileh, header=do_header)
+
+            with open(store_fname + ".json", 'w') as fileh:
+                df_summary.to_json(fileh, orient="records")
 
 
     # Calculate and display the total runtime
