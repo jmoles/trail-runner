@@ -5,10 +5,17 @@ class NetworkTypes:
     JEFFERSON = 0
     JEFF_M_DL_10_5_4_V1 = 1
     JEFF_M_DL_10_1_4_V1 = 2
+    JEFF_M_DL_4_1_4_V1  = 3
+    JEFF_M_DL_6_1_4_V1  = 4
+    JEFF_M_DL_10_1_3_V1 = 5
     STRINGS = [
         "Jefferson 2,5,4 NN v1",
         "Jefferson-like MDL5 10,5,4 NN v1",
-        "Jefferson-like MDL5 10,1,4 NN v1"
+        "Jefferson-like MDL5 10,1,4 NN v1",
+        "Jefferson-like MDL2 4,1,4 NN v1",
+        "Jefferson-like MDL3 6,1,4 NN v1",
+        "Jefferson-like MDL5 10,1,3 NN v1",
+
     ]
 
 class AgentNetwork:
@@ -75,6 +82,91 @@ class AgentNetwork:
 
             self.__params_length = len(self.network.params)
 
+        elif self.network_type == NetworkTypes.JEFF_M_DL_4_1_4_V1:
+            # Initalize the history with all trues
+            for _ in range(0,2):
+                self.__history.append(False)
+
+            # Build a delay line neural network.
+            self.network = FeedForwardNetwork()
+
+            inLayer = LinearLayer(4)
+            hiddenLayer = SigmoidLayer(1)
+            outputLayer = LinearLayer(4)
+
+            self.network.addInputModule(inLayer)
+            self.network.addModule(hiddenLayer)
+            self.network.addOutputModule(outputLayer)
+
+            self.in_to_hidden     = FullConnection(inLayer, hiddenLayer)
+            self.in_to_out        = FullConnection(inLayer, outputLayer)
+            self.hidden_to_out    = FullConnection(hiddenLayer, outputLayer)
+
+            self.network.addConnection(self.in_to_hidden)
+            self.network.addConnection(self.hidden_to_out)
+            self.network.addConnection(self.in_to_out)
+
+            self.network.sortModules()
+
+            self.__params_length = len(self.network.params)
+
+        elif self.network_type == NetworkTypes.JEFF_M_DL_6_1_4_V1:
+            # Initalize the history with all trues
+            for _ in range(0,3):
+                self.__history.append(False)
+
+            # Build a delay line neural network.
+            self.network = FeedForwardNetwork()
+
+            inLayer = LinearLayer(6)
+            hiddenLayer = SigmoidLayer(1)
+            outputLayer = LinearLayer(4)
+
+            self.network.addInputModule(inLayer)
+            self.network.addModule(hiddenLayer)
+            self.network.addOutputModule(outputLayer)
+
+            self.in_to_hidden     = FullConnection(inLayer, hiddenLayer)
+            self.in_to_out        = FullConnection(inLayer, outputLayer)
+            self.hidden_to_out    = FullConnection(hiddenLayer, outputLayer)
+
+            self.network.addConnection(self.in_to_hidden)
+            self.network.addConnection(self.hidden_to_out)
+            self.network.addConnection(self.in_to_out)
+
+            self.network.sortModules()
+
+            self.__params_length = len(self.network.params)
+
+        elif self.network_type == NetworkTypes.JEFF_M_DL_10_1_3_V1:
+            # Initalize the history with all trues
+            for _ in range(0,5):
+                self.__history.append(False)
+
+            # Build a delay line neural network.
+            self.network = FeedForwardNetwork()
+
+            inLayer = LinearLayer(10)
+            hiddenLayer = SigmoidLayer(1)
+            outputLayer = LinearLayer(3)
+
+            self.network.addInputModule(inLayer)
+            self.network.addModule(hiddenLayer)
+            self.network.addOutputModule(outputLayer)
+
+            self.in_to_hidden     = FullConnection(inLayer, hiddenLayer)
+            self.in_to_out        = FullConnection(inLayer, outputLayer)
+            self.hidden_to_out    = FullConnection(hiddenLayer, outputLayer)
+
+            self.network.addConnection(self.in_to_hidden)
+            self.network.addConnection(self.hidden_to_out)
+            self.network.addConnection(self.in_to_out)
+
+            self.network.sortModules()
+
+            self.__params_length = len(self.network.params)
+
+
         else:
             # Build a neural network.
             self.network = RecurrentNetwork()
@@ -126,7 +218,7 @@ class AgentNetwork:
 
             return np.argmax(result)
 
-        elif (self.network_type == NetworkTypes.JEFF_M_DL_10_5_4_V1 or 
+        elif (self.network_type == NetworkTypes.JEFF_M_DL_10_5_4_V1 or
             self.network_type == NetworkTypes.JEFF_M_DL_10_1_4_V1):
             result = 0
             history_numeric = []
@@ -148,10 +240,61 @@ class AgentNetwork:
 
             return np.argmax(result)
 
+        elif (self.network_type == NetworkTypes.JEFF_M_DL_4_1_4_V1):
+            result = 0
+            history_numeric = []
+
+            # Update the history
+            self.__history.insert(0, trailAhead)
+            del self.__history[2:]
+
+            for curr_h in self.__history:
+                if curr_h == True:
+                    history_numeric.extend([1, 0])
+                else:
+                    history_numeric.extend([0, 1])
+
+            result = self.network.activate(history_numeric)
+
+            return np.argmax(result)
+
+        elif (self.network_type == NetworkTypes.JEFF_M_DL_6_1_4_V1):
+            result = 0
+            history_numeric = []
+
+            # Update the history
+            self.__history.insert(0, trailAhead)
+            del self.__history[3:]
+
+            for curr_h in self.__history:
+                if curr_h == True:
+                    history_numeric.extend([1, 0])
+                else:
+                    history_numeric.extend([0, 1])
+
+            result = self.network.activate(history_numeric)
+
+            return np.argmax(result)
+
+        elif (self.network_type == NetworkTypes.JEFF_M_DL_10_1_3_V1):
+            result = 0
+            history_numeric = []
+
+            # Update the history
+            self.__history.insert(0, trailAhead)
+            del self.__history[5:]
+
+            for curr_h in self.__history:
+                if curr_h == True:
+                    history_numeric.extend([1, 0])
+                else:
+                    history_numeric.extend([0, 1])
 
 
+            result = self.network.activate(history_numeric)
 
-
+            # Plus 1 because there is no no-op here.
+            return (np.argmax(result) + 1)
 
     def printWeights(self):
         """ Prints the weights for the network.
