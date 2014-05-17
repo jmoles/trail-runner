@@ -1,4 +1,6 @@
 import datetime
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -62,9 +64,14 @@ for curr_network in DESIRED_NETWORKS:
         plt.title(curr_network + " - " + curr_trail)
         plt.plot(x, np.repeat(np.array(MAX_FOOD), max_x), 'r--')
         plt.axis((0, max_x, 0, MAX_FOOD + 5))
+        plt.xlabel("Generations")
+        plt.ylabel("Food Consumed")
 
-        plt.savefig(PLOTS_DIR +
-            datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f") +
-             ".png")
+        fname = (PLOTS_DIR +
+            datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f"))
+
+        plt.savefig(fname + ".png")
+        plt.savefig(fname + ".eps")
+        plt.savefig(fname + ".pdf")
 
         plt.cla()
