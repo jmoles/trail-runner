@@ -238,8 +238,6 @@ def main():
             # Determine the current generations statistics.
             record = mstats.compile(population)
 
-            print record
-
             # Calculate the percent done for the progress bar.
             percent_done = int((float(gen) / float(args.generations)) * 100)
 
