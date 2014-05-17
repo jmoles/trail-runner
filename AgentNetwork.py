@@ -2,28 +2,17 @@ from pybrain.structure import FeedForwardNetwork, LinearLayer, SigmoidLayer, Ful
 import numpy as np
 
 class NetworkTypes:
-    JEFFERSON = 0
-    JEFF_M_DL_10_5_4_V1 = 1
-    JEFF_M_DL_10_1_4_V1 = 2
-    JEFF_M_DL_4_1_4_V1  = 3
-    JEFF_M_DL_6_1_4_V1  = 4
-    JEFF_M_DL_10_1_3_V1 = 5
-    JEFF_M_DL_8_1_4_V1  = 6
-    STRINGS = [
-        "Jefferson 2,5,4 NN v1",
-        "Jefferson-like MDL5 10,5,4 NN v1",
-        "Jefferson-like MDL5 10,1,4 NN v1",
-        "Jefferson-like MDL2 4,1,4 NN v1",
-        "Jefferson-like MDL3 6,1,4 NN v1",
-        "Jefferson-like MDL5 10,1,3 NN v1",
-        "Jefferson-like MDL4 8,1,4 NN v1",
-
-    ]
+    JEFFERSON = 1
+    JEFF_M_DL_10_5_4_V1 = 2
+    JEFF_M_DL_10_1_4_V1 = 3
+    JEFF_M_DL_4_1_4_V1  = 4
+    JEFF_M_DL_6_1_4_V1  = 5
+    JEFF_M_DL_10_1_3_V1 = 6
+    JEFF_M_DL_8_1_4_V1  = 7
 
 class AgentNetwork:
     def __init__(self, network_type=NetworkTypes.JEFFERSON):
         self.network_type = network_type
-        self.__network_string = NetworkTypes.STRINGS[self.network_type]
 
         self.__history = []
 
@@ -302,9 +291,5 @@ class AgentNetwork:
 
     def getParamsLength(self):
         return self.__params_length
-
-
-    def getStringName(self):
-        return self.__network_string
 
 

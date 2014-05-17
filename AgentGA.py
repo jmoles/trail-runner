@@ -88,18 +88,17 @@ class AgentGA(QtCore.QThread):
         cmd_list = []
         cmd_list.append("python")
         cmd_list.extend(["-m", "scoop"])
-        cmd_list.extend(["--hosts", "localhost"])
-        cmd_list.extend(["-p", str(os.getcwd())])
-        cmd_list.extend(["-n", "8"])
+        cmd_list.extend(["-q"])
         cmd_list.append("ga_runner.py")
         cmd_list.extend(["-g", str(self.gens)])
         cmd_list.extend(["-p", str(self.pop_size)])
         cmd_list.extend(["-m", str(self.moves)])
         cmd_list.extend(["-n", str(self.__network)])
-        cmd_list.extend(["--data-dir", str(self.__log_dir)])
 
         if not self.__log_dir:
-            cmd_list.extend(['--disable-logging'])
+            cmd_list.extend(['--disable-db'])
+
+        cmd_list.extend(["-q"])
 
         cmd_list.extend(["-z"])
         self.proc = subprocess.Popen(cmd_list)

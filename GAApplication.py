@@ -1,5 +1,6 @@
 import logging
 import ntpath
+import os
 import sys
 import time
 from numpy import matrix
@@ -10,14 +11,13 @@ from TrailUI import TrailUI
 from AgentGA import AgentGA
 from AgentNetwork import AgentNetwork, NetworkTypes
 from AgentTrail import AgentTrail
-
+from DBUtils import DBUtils
 from GASettings import GASettings
 
 class Communicate(QtCore.QObject):
     newFile  = QtCore.Signal(str)
     newSpeed = QtCore.Signal(int)
     newProg  = QtCore.Signal(int)
-    newLogDir = QtCore.Signal(str)
 
 class GAApplication(QtGui.QMainWindow):
 
@@ -37,7 +37,6 @@ class GAApplication(QtGui.QMainWindow):
         self.auto_run = int(self.settings.value("auto_run"))
         self.__network_idx = int(self.settings.value("network_idx"))
         self.__log_en   = bool(int(self.settings.value("logging_enabled")))
-        self.__log_dir = self.settings.value("logging_dir")
         self.settings.endGroup()
 
         # UI Elements
@@ -47,7 +46,6 @@ class GAApplication(QtGui.QMainWindow):
         self.auto_run_box = ()
         self.__network_type_combo = ()
         self.__logging_box  = ()
-        self.__logging_dir_button = ()
         self.run_button   = ()
         self.reset_button = ()
         self.progress_bar = ()
@@ -145,6 +143,11 @@ class GAApplication(QtGui.QMainWindow):
     def createDocks(self):
         self.settings.beginGroup("trail")
 
+        # Query DB
+        pgdb = DBUtils(password=os.environ['PSYCOPG2_DB_PASS'])
+
+        _, _, networks_list = pgdb.fetchNetworksList()
+
         # Build each of the spin boxes.
         self.moves_box    = QtGui.QSpinBox()
         self.moves_box.setRange(1, 1000)
@@ -167,16 +170,11 @@ class GAApplication(QtGui.QMainWindow):
         self.auto_run_box.setValue(self.auto_run)
 
         self.__network_type_combo = QtGui.QComboBox()
-        self.__network_type_combo.addItems(NetworkTypes.STRINGS)
+        self.__network_type_combo.addItems(networks_list)
         self.__network_type_combo.setCurrentIndex(self.__network_idx)
 
         self.__logging_box  = QtGui.QCheckBox("Log")
         self.__logging_box.setChecked(self.__log_en)
-
-        self.__logging_dir_button = QtGui.QPushButton(
-            ntpath.basename(self.__log_dir))
-        self.__logging_dir_button.clicked.connect(self.__openLogDir)
-        self.__logging_dir_button.setEnabled(self.__log_en)
 
         self.run_button   = QtGui.QPushButton("Run")
         self.run_button.clicked.connect(self.__runGA)
@@ -191,7 +189,7 @@ class GAApplication(QtGui.QMainWindow):
         layout.addRow(QtGui.QLabel("Generations"), self.gen_box)
         layout.addRow(QtGui.QLabel("Auto Run"), self.auto_run_box)
         layout.addRow(QtGui.QLabel("Network"), self.__network_type_combo)
-        layout.addRow(self.__logging_box, self.__logging_dir_button)
+        layout.addRow(self.__logging_box)
         layout.addRow(self.run_button, self.reset_button)
 
         content = QtGui.QWidget()
@@ -229,10 +227,6 @@ class GAApplication(QtGui.QMainWindow):
         # Connect the signal/slot for the configuration
         self.c.newFile[str].connect(self.antTrail.loadGrid)
 
-        # Connect the signal/slot for the logging file settings
-        self.c.newLogDir[str].connect(self.__updateLogFile)
-        self.__logging_box.stateChanged[int].connect(self.__logCheckChanged)
-
         # Connect the signal/slot for the events when thread starts or stops.
         self.ga_thread.started.connect(self.__setRunStarted)
         self.ga_thread.terminated.connect(self.__setRunTerminated)
@@ -257,21 +251,6 @@ class GAApplication(QtGui.QMainWindow):
             # Menu was cancelled. Just resume
             self.antTrail.resume()
 
-    def __openLogDir(self):
-        dirname = QtGui.QFileDialog.getExistingDirectory(self,
-            str("Open Data Directory"), ".",
-            (QtGui.QFileDialog.ShowDirsOnly or
-            QtGui.QFileDialog.DontResolveSymlinks))
-
-        if dirname != "":
-            logging.debug(dirname + " was selected.")
-            self.c.newLogDir.emit(dirname)
-            self.__log_dir = dirname
-        else:
-            # Menu was cancelled. Just quit
-            logging.debug("Menu was cancelled")
-            pass
-
     def __runGA(self):
         if(not self.ga_thread.isRunning()):
             # Change what the push button says
@@ -282,7 +261,7 @@ class GAApplication(QtGui.QMainWindow):
             self.pop_size   = self.pop_box.value()
             self.gens       = self.gen_box.value()
             self.auto_run   = self.auto_run_box.value()
-            self.__network_idx  = self.__network_type_combo.currentIndex()
+            self.__network_idx  = self.__network_type_combo.currentIndex() + 1
             self.__log_en       = self.__logging_box.isChecked()
 
             if self.__log_en:
@@ -370,28 +349,3 @@ class GAApplication(QtGui.QMainWindow):
 
         self.antTrail.loadGrid(self.filename)
         self.antTrail.queueAutoMove(moves)
-
-    @QtCore.Slot(str)
-    def __updateLogFile(self, new_log):
-        """ Updates the log file directory currently in use and UI button.
-
-        Args:
-        new_log (str): New directory to record data in.
-        """
-
-        self.__log_dir = new_log
-        self.__logging_dir_button.setText(
-            ntpath.basename(new_log))
-
-
-    @QtCore.Slot(int)
-    def __logCheckChanged(self, check_state):
-
-        if check_state == QtCore.Qt.CheckState.Checked:
-            self.__logging_dir_button.setEnabled(True)
-        else:
-            self.__logging_dir_button.setEnabled(False)
-
-
-
-

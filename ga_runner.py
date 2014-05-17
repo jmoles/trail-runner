@@ -4,6 +4,7 @@ from deap import algorithms, base, creator, tools
 import json
 import logging
 import numpy as np
+import os
 import os.path
 import pickle
 import random
@@ -16,24 +17,19 @@ import time
 import uuid
 import zmq
 
-import pandas as pd
-
 from AgentNetwork import AgentNetwork, NetworkTypes
 from AgentTrail import AgentTrail
+from DBUtils import DBUtils
 
-try: 
+try:
     import progressbar
-except ImportError: 
-    logging.warning("progressbar2 library is not avaialble. " + 
+except ImportError:
+    logging.warning("progressbar2 library is not available. " +
         "Try 'pip install progressbar2'")
 
 # Configure DEAP
 creator.create("FitnessMulti", base.Fitness, weights=(1,-1))
 creator.create("Individual", list, fitness=creator.FitnessMulti)
-
-# Configure Logging
-root = logging.getLogger()
-root.setLevel(logging.INFO)
 
 # Some constants
 P_BIT_MUTATE = 0.05
@@ -43,24 +39,15 @@ P_CROSSOVER  = 0.5
 WEIGHT_MIN   = -5.0
 WEIGHT_MAX   = 5.0
 
-def __recordSingleRun(df, gen_i, runtime_i, moves_hof_i, food_hof_i, record_l, 
-    hof_individual_npa=None):
+def __recordSingleRun(tp, run_id, gen_i, runtime_i, moves_hof_i,
+    food_hof_i, record_l, hof_individual_npa, moves_stats_i):
 
-    df.iloc[gen_i-1,:]=[
-        runtime_i,
-        moves_hof_i,
-        food_hof_i,
-        record_l["food"]["min"],
-        record_l["food"]["avg"],
-        record_l["food"]["max"],
-        record_l["food"]["std"],
-        record_l["moves"]["min"],
-        record_l["moves"]["avg"],
-        record_l["moves"]["max"],
-        record_l["moves"]["std"]
-    ]
+    record_info = {}
 
-def __singleMazeTask(individual, moves, trail, network_type):
+
+
+def __singleMazeTask(individual, moves, trail, network_type,
+    stats_run = False):
     an = AgentNetwork(network_type)
     at = AgentTrail()
     at.readTrail(trail)
@@ -68,6 +55,12 @@ def __singleMazeTask(individual, moves, trail, network_type):
     num_moves = 0
 
     an.network._setParameters(individual)
+
+    move_stats            = {}
+    move_stats["none"]    = 0
+    move_stats["left"]    = 0
+    move_stats["right"]   = 0
+    move_stats["forward"] = 0
 
     for _ in xrange(moves):
         # If all of the food is collected, done
@@ -78,22 +71,29 @@ def __singleMazeTask(individual, moves, trail, network_type):
 
         if(currMove == 1):
             at.turnLeft()
+            move_stats["left"] += 1
         elif(currMove == 2):
             at.turnRight()
+            move_stats["right"] += 1
         elif(currMove == 3):
             at.moveForward()
+            move_stats["forward"] += 1
+        else:
+            move_stats["none"] += 1
 
-        num_moves = num_moves + 1
+        num_moves += 1
 
-    return (at.getFoodConsumed(), num_moves)
+    if stats_run:
+        return (at.getFoodConsumed(), num_moves, move_stats)
+    else:
+        return (at.getFoodConsumed(), num_moves)
 
 def main():
-    # Build some data for arguments output.
-    network_types_s = ""
-    network_num   = 0
-    for curr_s in NetworkTypes.STRINGS:
-        network_types_s += "\t" + str(network_num) + ":" + curr_s + "\n"
-        network_num += 1
+    # Query the database to gather some items for argument output.
+    pgdb = DBUtils(password=os.environ['PSYCOPG2_DB_PASS'])
+
+    network_types_s, valid_net_opts = pgdb.fetchNetworkCmdPrettyPrint()
+    trail_types_s, valid_trail_opts = pgdb.fetchTrailList()
 
     # Parse the arguments
     parser = argparse.ArgumentParser(
@@ -108,61 +108,61 @@ def main():
         default=325, help="Maximum moves for agent.")
     parser.add_argument("-n", "--network", type=int, nargs="?",
         default=1,
-        help=textwrap.dedent("Network type to use. Valid options are:\n" + 
+        help=textwrap.dedent("Network type to use. Valid options are:\n" +
             network_types_s),
-        choices=range(0,len(NetworkTypes.STRINGS)))
+        choices=valid_net_opts)
     parser.add_argument("-t", "--trail", type=str, nargs="?",
         default="trails/john_muir_32.yaml", help="Trail file to read.")
     parser.add_argument("-z", "--enable-zmq-updates", action='store_true',
         help="Enable use of ZMQ messaging for real-time GUI monitoring.")
     parser.add_argument("-r", "--repeat", type=int, nargs="?",
         default=1, help="Number of times to run simulations.")
-    parser.add_argument("--data-dir", type=str, nargs="?",
-        default="data", help="Data directory.")
-    parser.add_argument("--disable-logging",
+    parser.add_argument("--disable-db",
         action='store_true')
+    parser.add_argument("--debug",
+        action='store_true',
+        help="Enables debug messages and flag for data in DB.")
+    parser.add_argument("-q", "--quiet", action='store_true')
     args = parser.parse_args()
 
     run_date = time.time()
 
-    # Check if data directories exist and sanatize name.
-    if not args.disable_logging:
-        if not os.path.isdir(args.data_dir):
-            logging.critical("Specified data directory does not exist.")
-            sys.exit(1)
+    # Configure Logging
+    root = logging.getLogger()
+    if(args.debug):
+        root.setLevel(logging.DEBUG)
+    else:
+        root.setLevel(logging.INFO)
 
-        data_dir = os.path.normpath(args.data_dir) + "/"
-
-        # Create the runs directory in data if it doesn't exist.
-        if not os.path.isdir(data_dir + "runs"):
-            os.mkdir(data_dir + "runs")
+    if args.quiet:
+        root.propogate = False
 
     # Get the name of this agent trail for later use
     at = AgentTrail()
     at.readTrail(args.trail)
     trail_name = at.getName()
 
-    try:
-        widgets = ['Processed: ', progressbar.Percentage(), ' ',
-            progressbar.Bar(marker=progressbar.RotatingMarker()),
-            ' ', progressbar.ETA()]
-        pbar = progressbar.ProgressBar(widgets=widgets, maxval=100).start()
-    except:
+    if not args.quiet:
+        try:
+            widgets = ['Processed: ', progressbar.Percentage(), ' ',
+                progressbar.Bar(marker=progressbar.RotatingMarker()),
+                ' ', progressbar.ETA()]
+            pbar = progressbar.ProgressBar(widgets=widgets, maxval=100).start()
+        except:
+            pbar = None
+    else:
         pbar = None
 
-    df_single = pd.DataFrame(np.random.randn(args.generations,11), columns=[
-            'runtime_s', 'hof_moves', 'hof_food', 
-            'food_min', 'food_avg', 'food_max', 'food_std',
-            'moves_min', 'moves_avg', 'moves_max', 'moves_std'])
-
-    best_food = 0
-    best_moves = sys.maxint
-
     for curr_repeat in range(0, args.repeat):
-        repeat_start_time = time.time()
+        repeat_start_time = datetime.datetime.now()
+
+
+        if not args.disable_db:
+            # Create a tuple to store stats
+            gens_stat_list = []
 
         # Prepare the array for storing hall of fame.
-        hof_array = np.zeros((args.generations, 
+        hof_array = np.zeros((args.generations,
             AgentNetwork(args.network).getParamsLength()))
 
         if(args.enable_zmq_updates):
@@ -203,10 +203,14 @@ def main():
         mstats.register("max", np.max)
         mstats.register("std", np.std)
 
+        # Record the start of this run.
+        if not args.disable_db:
+            log_time = datetime.datetime.now()
+
         # Begin the generational process
         for gen in range(1, args.generations + 1):
 
-            gen_start_time = time.time()
+            gen_start_time = datetime.datetime.now()
 
             # TODO: Need to add check and comms from master
             # to cease work when the stop button is pushed.
@@ -231,8 +235,10 @@ def main():
             # Replace the current population by the offspring
             population[:] = offspring
 
-            # Determinte the current generations statistics.
+            # Determine the current generations statistics.
             record = mstats.compile(population)
+
+            print record
 
             # Calculate the percent done for the progress bar.
             percent_done = int((float(gen) / float(args.generations)) * 100)
@@ -252,21 +258,37 @@ def main():
                         "done"               : done,
                         "record"             : record})
 
-            this_food, this_moves = __singleMazeTask(tools.selBest(
+            if not args.disable_db:
+                # Record the statistics for this run.
+                _, _, this_move_stats = (
+                __singleMazeTask(tools.selBest(
                 population, k=1)[0],
-                args.moves, args.trail, args.network)
+                args.moves, args.trail, args.network, True))
 
-            # Store and update statistics.
-            __recordSingleRun(df_single, gen, time.time() - gen_start_time,
-                this_moves, this_food, record)
+                record_info                  = {}
+                record_info["gen"]           = gen - 1
+                record_info["runtime"]       = (datetime.datetime.now() -
+                        gen_start_time)
+                record_info["food_max"]      = record["food"]["max"]
+                record_info["food_min"]      = record["food"]["min"]
+                record_info["food_avg"]      = record["food"]["avg"]
+                record_info["food_std"]      = record["food"]["std"]
+                record_info["moves_max"]     = record["moves"]["max"]
+                record_info["moves_min"]     = record["moves"]["min"]
+                record_info["moves_avg"]     = record["moves"]["avg"]
+                record_info["moves_std"]     = record["moves"]["std"]
+                record_info["moves_left"]    = this_move_stats["left"]
+                record_info["moves_right"]   = this_move_stats["right"]
+                record_info["moves_forward"] = this_move_stats["forward"]
+                record_info["moves_none"]    = this_move_stats["none"]
+                record_info["elite"]         = np.array(
+                        tools.selBest(population, k=1)[0]).tolist()
+
+                gens_stat_list.append(record_info)
+
+
 
             hof_array[gen - 1] = np.array(tools.selBest(population, k=1)[0])
-
-            if this_food > best_food:
-                best_food = this_food
-
-            if this_moves < best_moves:
-                best_moves = this_moves
 
             # Update the progress bar
             if pbar:
@@ -278,53 +300,33 @@ def main():
                         args.generations, curr_repeat + 1, args.repeat))
 
         # Record the statistics on this run.
-        if not args.disable_logging:
-            log_time = datetime.datetime.now()
+        if not args.disable_db:
+            run_info = {}
 
-            try:
-                df_summary = pd.read_csv(data_dir + "summary.csv")
-                next_idx = max(df_summary.index) + 1
-                do_header = False
-            except:
-                next_idx = 0
-                do_header = True
+            run_info["trails_id"]    = 3
+            run_info["networks_id"]  = args.network
+            run_info["mutate_id"]    = 1 # Only one type of mutate for now.
+            run_info["host_type_id"] = 1 # Only one host type for now.
+            run_info["run_date"]     = log_time
+            run_info["hostname"]     = socket.getfqdn()
+            run_info["generations"]  = args.generations
+            run_info["population"]   = args.population
+            run_info["moves_limit"]  = args.moves
+            run_info["elite_count"]  = TOURN_SIZE
+            run_info["p_mutate"]     = P_MUTATE
+            run_info["p_crossover"]  = P_CROSSOVER
+            run_info["weight_min"]   = WEIGHT_MIN
+            run_info["weight_max"]   = WEIGHT_MAX
+            run_info["debug"]        = args.debug
+            run_info["runtime"]      = (datetime.datetime.now() -
+                repeat_start_time)
 
-            df_summary = pd.DataFrame({
-                    'run_date'     : pd.to_datetime(log_time),
-                    'pop_size'     : args.population,
-                    'moves_limit'  : args.moves,
-                    'gen_count'    : args.generations,
-                    'runtime_s'    : time.time() - repeat_start_time,
-                    'trail_file'   : trail_name,
-                    'p_mutate_bit' : P_BIT_MUTATE,
-                    'mutate_type'  : "mutFlipBit", #TODO: Update if this type changes.
-                    'p_mutate'     : P_MUTATE,
-                    'p_crossover'  : P_CROSSOVER,
-                    'tourn_size'   : TOURN_SIZE,
-                    'weight_min'   : WEIGHT_MIN,
-                    'weight_max'   : WEIGHT_MAX,
-                    'network_name' : AgentNetwork(args.network).getStringName(),
-                    'hostname'     : socket.getfqdn(),
-                    'best_food'    : best_food,
-                    'best_moves'   : best_moves
-                }, index=[next_idx])
-
-            store_fname = (data_dir + "runs/" +
-                log_time.strftime("%Y%m%d_%H%M%S"))
-            store = pd.HDFStore(store_fname + ".h5", complib='zlib', complevel=9)
-            store['gens']    = df_single
-            store['hof']     = pd.DataFrame(hof_array)
-            store.close()
-
-            with open('data/summary.csv', 'a') as fileh:
-                df_summary.to_csv(fileh, header=do_header)
-
-            with open(store_fname + ".json", 'w') as fileh:
-                df_summary.to_json(fileh, orient="records")
+            pgdb.recordRun(run_info, gens_stat_list)
 
 
     # Calculate and display the total runtime
-    pbar.finish()
+    if pbar:
+        pbar.finish()
     total_time_s = time.time() - run_date
 
     logging.info("Run completed in " +

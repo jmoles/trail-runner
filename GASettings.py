@@ -3,7 +3,7 @@ from PySide import QtCore, QtGui
 
 class GASettings(QtCore.QSettings):
 
-    VERSION = 4
+    VERSION = 5
 
     # Defaults for items
     TRAIL_MOVES        = 325
@@ -45,9 +45,8 @@ class GASettings(QtCore.QSettings):
             self.setValue("generations", 200)
             self.setValue("auto_run", 30)
             self.setValue("default_file", "trails/john_muir_32.yaml")
-            self.setValue("network_idx", 0)
+            self.setValue("network_idx", 1)
             self.setValue("logging_enabled", 1)
-            self.setValue("logging_dir", "data")
             self.endGroup()
 
             self.beginGroup("trailUI")
