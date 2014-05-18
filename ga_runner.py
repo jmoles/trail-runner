@@ -98,7 +98,7 @@ def main():
     # Parse the arguments
     parser = argparse.ArgumentParser(
         description="Launches SCOOP parallelized version "
-        "of genetic alogrithm.",
+        "of genetic algorithm.",
         formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("-g", "--generations", type=int, nargs="?",
         default=200, help="Number of generations to run for.")
@@ -111,8 +111,12 @@ def main():
         help=textwrap.dedent("Network type to use. Valid options are:\n" +
             network_types_s),
         choices=valid_net_opts)
-    parser.add_argument("-t", "--trail", type=str, nargs="?",
-        default="trails/john_muir_32.yaml", help="Trail file to read.")
+    parser.add_argument("-t", "--trail", type=int, nargs="?",
+        default=3,
+        help=textwrap.dedent(
+            "Trail to use. Valid options (with recommended moves) are:\n" +
+            trail_types_s),
+        choices=valid_trail_opts)
     parser.add_argument("-z", "--enable-zmq-updates", action='store_true',
         help="Enable use of ZMQ messaging for real-time GUI monitoring.")
     parser.add_argument("-r", "--repeat", type=int, nargs="?",
@@ -294,7 +298,7 @@ def main():
                     (float(curr_repeat)) / (float(args.repeat)))
                 pbar.update(bar_done_val * 100)
             else:
-                logging.info("on generation %d / %d of repeat %d / %d" % (gen,
+                logging.debug("on generation %d / %d of repeat %d / %d" % (gen,
                         args.generations, curr_repeat + 1, args.repeat))
 
         # Record the statistics on this run.

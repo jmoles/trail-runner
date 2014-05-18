@@ -35,10 +35,8 @@ class TrailUI(QtGui.QFrame):
     AGENT_DELTA_S  = "trailUI/agent_delta"
     RECT_SIZE_S    = "trailUI/rect_size"
 
-    DEFAULT_FILE   = "trails/john_muir_32.yaml"
-
     # Constructor function
-    def __init__(self, parent, filename):
+    def __init__(self, parent, trail_num):
         super(TrailUI, self).__init__()
 
         # Used to get to settings
@@ -46,7 +44,7 @@ class TrailUI(QtGui.QFrame):
 
         # Create an Agent Trail
         self.agent_trail = AgentTrail()
-        self.agent_trail.readTrail(filename)
+        self.agent_trail.readTrail(trail_num)
 
         # Get the size of the data grid and decrement by 1 since board
         # grid starts at index 0.
@@ -77,16 +75,16 @@ class TrailUI(QtGui.QFrame):
         self.__agent_delta = int(self.settings.value(TrailUI.AGENT_DELTA_S))
         self.__grid_size   = int(self.settings.value(TrailUI.RECT_SIZE_S))
 
-        self.__last_filename = ""
+        self.__last_number = ""
 
     @QtCore.Slot(str)
-    def loadGrid(self, filename):
+    def loadGrid(self, trail_num):
         self.pause()
         self.setUpdatesEnabled(False)
 
         self.agent_trail = AgentTrail()
-        self.agent_trail.readTrail(filename)
-        self.__last_filename = filename
+        self.agent_trail.readTrail(trail_num)
+        self.__last_number = trail_num
 
         # Update the maximums
         self.maxY, self.maxX = self.agent_trail.getTrailDim()

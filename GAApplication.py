@@ -29,7 +29,7 @@ class GAApplication(QtGui.QMainWindow):
 
         # Variables
         self.settings.beginGroup("trail")
-        self.filename = self.settings.value("default_file")
+        self.trail_num = self.settings.value("trail_num")
         self.moves    = int(self.settings.value("moves"))
         self.pop_size = int(self.settings.value("population"))
         self.gens     = int(self.settings.value("generations"))
@@ -55,7 +55,7 @@ class GAApplication(QtGui.QMainWindow):
 
         self.readSettings()
 
-        self.antTrail = TrailUI(self, self.filename)
+        self.antTrail = TrailUI(self, self.trail_num)
         self.antTrail.setContentsMargins(0,0,0,0)
 
         # Get the handle to the statusbar.
@@ -104,7 +104,7 @@ class GAApplication(QtGui.QMainWindow):
         self.settings.endGroup()
 
         self.settings.beginGroup("trail")
-        self.settings.setValue("default_file", self.filename)
+        self.settings.setValue("trail_num", self.trail_num)
         self.settings.setValue("moves", self.moves_box.value())
         self.settings.setValue("population", self.pop_box.value())
         self.settings.setValue("generations", self.gen_box.value())
@@ -112,7 +112,6 @@ class GAApplication(QtGui.QMainWindow):
         self.settings.setValue("network_idx", self.__network_type_combo.currentIndex())
         self.settings.setValue("logging_enabled",
             int(self.__logging_box.isChecked()))
-        self.settings.setValue("logging_file", self.__log_dir)
         self.settings.endGroup()
 
     def readSettings(self):
@@ -127,14 +126,11 @@ class GAApplication(QtGui.QMainWindow):
         QtGui.QMainWindow.closeEvent(self, event)
 
     def createActions(self):
-        self.openTrailAct = QtGui.QAction("&Open Trail...", self,
-            shortcut="Ctrl+O", triggered = self.openFile)
         self.exitAct = QtGui.QAction("&Quit", self, triggered=self.close)
         self.gatoolsAct = QtGui.QAction("GA Toolbox", self, checkable = True)
 
     def createMenus(self):
         self.fileMenu = self.menuBar().addMenu("&File")
-        self.fileMenu.addAction(self.openTrailAct)
         self.fileMenu.addAction(self.exitAct)
 
         self.toolsMenu = self.menuBar().addMenu("&Tools")
@@ -237,20 +233,6 @@ class GAApplication(QtGui.QMainWindow):
 
         self.ga_thread.c.newIndividual[list].connect(self.__runAgentSlot)
 
-    def openFile(self):
-        self.antTrail.pause()
-        filename, _ = QtGui.QFileDialog.getOpenFileName(self,
-            str("Open Trail File"), "./trails",
-            str("Trail Files (*.yml *.yaml);;"
-                "All Files(*)"))
-
-        if filename != "":
-            self.c.newFile.emit(filename)
-            self.filename = filename
-        else:
-            # Menu was cancelled. Just resume
-            self.antTrail.resume()
-
     def __runGA(self):
         if(not self.ga_thread.isRunning()):
             # Change what the push button says
@@ -269,7 +251,7 @@ class GAApplication(QtGui.QMainWindow):
             else:
                 logfile = None
 
-            self.ga_thread.setVars(self.filename,
+            self.ga_thread.setVars(self.trail_num,
                 self.moves,
                 self.pop_size,
                 self.gens,
@@ -315,7 +297,7 @@ class GAApplication(QtGui.QMainWindow):
         at    = AgentTrail()
         moves = ""
 
-        at.readTrail(self.filename)
+        at.readTrail(self.trail_num)
 
         an.network._setParameters(individual)
 
@@ -347,5 +329,5 @@ class GAApplication(QtGui.QMainWindow):
                 at.moveForward()
 
 
-        self.antTrail.loadGrid(self.filename)
+        self.antTrail.loadGrid(self.trail_num)
         self.antTrail.queueAutoMove(moves)

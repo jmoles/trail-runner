@@ -1,5 +1,6 @@
 import numpy as np
-import yaml
+
+from DBUtils import DBUtils
 
 class GridVals:
     EMPTY  = 0 # Nothing in this square
@@ -36,21 +37,13 @@ class AgentTrail:
         self.__num_moves     = 0
 
 
-    def readTrail(self, filename):
-        with open(filename, "r") as input_file:
-            file_content = input_file.read()
+    def readTrail(self, trail_num):
+        pgdb = DBUtils()
 
-        yaml_in = yaml.load(file_content)
+        (self.__data_matrix,
+        self.__trail_name,
+        self.__rotation) = pgdb.getTrailData(trail_num)
 
-        trail = yaml_in["trail"]
-
-        trail = trail.replace('\r\n', ';')
-        trail = trail.replace('\n', ';')
-        trail = trail.replace('\r', ';')
-
-        self.__data_matrix = np.matrix(trail)
-        self.__rotation    = yaml_in["init_rot"]
-        self.__trail_name  = yaml_in["name"]
         self.__food_total  = np.where(self.__data_matrix == GridVals.FOOD)[0].size
 
         self.__maxY, self.__maxX = self.__data_matrix.shape
@@ -234,14 +227,14 @@ class AgentTrail:
         # Move has occurred. Now, do steps at new spot.
 
         # Check if the ant consumed food at the new spot
-        if (self.__data_matrix[self.__currY, self.__currX] == GridVals.FOOD or 
+        if (self.__data_matrix[self.__currY, self.__currX] == GridVals.FOOD or
             self.__data_matrix[self.__currY, self.__currX] == GridVals.END):
             self.__food_consumed = self.__food_consumed + 1
             self.__data_matrix[self.__currY, self.__currX] = GridVals.EMPTY
         else:
             self.__data_matrix[self.__currY, self.__currX] = (
                 self.__data_matrix[self.__currY, self.__currX])
-        
+
         # Set agent to this position.
         self.__data_matrix[self.__currY, self.__currX] = self.__curr_agent
 

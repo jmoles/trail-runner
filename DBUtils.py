@@ -1,9 +1,11 @@
+import numpy as np
+import os
 import psycopg2
 
 
 class DBUtils:
     def __init__(self, host="db.cecs.pdx.edu", db="jmoles",
-        user="jmoles", password=None):
+        user="jmoles", password=os.environ["PSYCOPG2_DB_PASS"]):
 
         self.__dsn = "host={0} dbname={1} user={2} password={3}".format(
             host, db, user, password)
@@ -46,7 +48,7 @@ class DBUtils:
 
         for idx, name, moves in curs.fetchall():
             trail_s += ("\t" + str(idx) + ":" + name +
-                "Recommended Moves: " + str(moves) + "\n")
+                " (" + str(moves) + ")\n")
             trail_i.append(idx)
 
         curs.close()
@@ -54,6 +56,11 @@ class DBUtils:
 
         return trail_s, trail_i
 
+    def getNetworks(self):
+        return self.__genericDictGet("SELECT * FROM networks")
+
+    def getTrails(self):
+        return self.__genericDictGet("SELECT id, name FROM trails")
 
     def recordRun(self, run_info, gen_info):
         conn = psycopg2.connect(self.__dsn)
@@ -120,3 +127,32 @@ class DBUtils:
         conn.close()
 
 
+    def __genericDictGet(self, query):
+        conn = psycopg2.connect(self.__dsn)
+        curs = conn.cursor()
+
+        ret_dict = {}
+
+        curs.execute(query)
+        for idx, name in curs.fetchall():
+            ret_dict[idx] = name
+
+        curs.close()
+        conn.close()
+
+        return ret_dict
+
+
+    def getTrailData(self, trailID):
+        conn = psycopg2.connect(self.__dsn)
+        curs = conn.cursor()
+
+        curs.execute("""SELECT trail_data, name, init_rot FROM trails
+            WHERE id=%s;""", (trailID, ))
+
+        curs_results = curs.fetchall()[0]
+
+        return np.matrix(curs_results[0]), curs_results[1], curs_results[2]
+
+        curs.close()
+        conn.close()
