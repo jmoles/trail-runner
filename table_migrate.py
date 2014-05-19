@@ -58,7 +58,7 @@ def main():
         sys.exit(2)
 
     # Create backup of file
-    shutil.copy2(args.filename, args.filename + "_" + 
+    shutil.copy2(args.filename, args.filename + "_" +
        str(int(time.time())) + ".bak")
 
     # Create a copy of table to work on.
