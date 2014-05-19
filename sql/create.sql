@@ -5,7 +5,12 @@ INSERT INTO networks (id, name) VALUES
 	(DEFAULT, 'Jefferson-like MDL2 4,1,4 NN v1'),
 	(DEFAULT, 'Jefferson-like MDL3 6,1,4 NN v1'),
 	(DEFAULT, 'Jefferson-like MDL5 10,1,3 NN v1'),
-	(DEFAULT, 'Jefferson-like MDL4 8,1,4 NN v1');
+	(DEFAULT, 'Jefferson-like MDL4 8,1,4 NN v1'),
+	(DEFAULT, 'Jefferson-like MDL6 12,1,4 NN v1'),
+	(DEFAULT, 'Jefferson-like MDL7 14,1,4 NN v1'),
+	(DEFAULT, 'Jefferson-like MDL8 16,1,3 NN v1'),
+	(DEFAULT, 'Jefferson-like MDL9 18,1,4 NN v1'),
+	(DEFAULT, 'Jefferson-like MDL10 20,1,4 NN v1');
 
 INSERT INTO trails (id, name, moves, init_rot, trail_data) VALUES
 	(DEFAULT, 'Sample L 5x5', 15, 0, '{{0,0,0,0,0},{1,1,7,1,0},{0,0,0,1,0},{0,0,0,1,0},{0,0,0,2,0}}'),

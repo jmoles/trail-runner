@@ -9,6 +9,12 @@ class NetworkTypes:
     JEFF_M_DL_6_1_4_V1  = 5
     JEFF_M_DL_10_1_3_V1 = 6
     JEFF_M_DL_8_1_4_V1  = 7
+    JEFF_M_DL_12_1_4_V1 = 8
+    JEFF_M_DL_14_1_4_V1 = 9
+    JEFF_M_DL_16_1_4_V1 = 10
+    JEFF_M_DL_18_1_4_V1 = 11
+    JEFF_M_DL_20_1_4_V1 = 12
+
 
 class AgentNetwork:
     def __init__(self, network_type=NetworkTypes.JEFFERSON):
@@ -185,6 +191,49 @@ class AgentNetwork:
 
             self.__params_length = len(self.network.params)
 
+        elif (self.network_type == NetworkTypes.JEFF_M_DL_20_1_4_V1 or
+            self.network_type == NetworkTypes.JEFF_M_DL_18_1_4_V1 or
+            self.network_type == NetworkTypes.JEFF_M_DL_16_1_4_V1 or
+            self.network_type == NetworkTypes.JEFF_M_DL_14_1_4_V1 or
+            self.network_type == NetworkTypes.JEFF_M_DL_12_1_4_V1):
+
+            if (self.network_type == NetworkTypes.JEFF_M_DL_20_1_4_V1):
+                DL_LENGTH = 10
+            elif (self.network_type == NetworkTypes.JEFF_M_DL_18_1_4_V1):
+                DL_LENGTH = 9
+            elif (self.network_type == NetworkTypes.JEFF_M_DL_16_1_4_V1):
+                DL_LENGTH = 8
+            elif (self.network_type == NetworkTypes.JEFF_M_DL_14_1_4_V1):
+                DL_LENGTH = 7
+            elif (self.network_type == NetworkTypes.JEFF_M_DL_12_1_4_V1):
+                DL_LENGTH = 6
+
+            # Initalize the history with all trues
+            for _ in range(0, DL_LENGTH):
+                self.__history.append(False)
+
+            # Build a delay line neural network.
+            self.network = FeedForwardNetwork()
+
+            inLayer = LinearLayer(DL_LENGTH * 2)
+            hiddenLayer = SigmoidLayer(1)
+            outputLayer = LinearLayer(4)
+
+            self.network.addInputModule(inLayer)
+            self.network.addModule(hiddenLayer)
+            self.network.addOutputModule(outputLayer)
+
+            self.in_to_hidden     = FullConnection(inLayer, hiddenLayer)
+            self.in_to_out        = FullConnection(inLayer, outputLayer)
+            self.hidden_to_out    = FullConnection(hiddenLayer, outputLayer)
+
+            self.network.addConnection(self.in_to_hidden)
+            self.network.addConnection(self.hidden_to_out)
+            self.network.addConnection(self.in_to_out)
+
+            self.network.sortModules()
+
+            self.__params_length = len(self.network.params)
 
         else:
             # Build a neural network.
@@ -239,6 +288,21 @@ class AgentNetwork:
 
             return np.argmax(result)
 
+        elif (self.network_type == NetworkTypes.JEFF_M_DL_20_1_4_V1):
+            max_len = 10
+            offset  = False
+        elif (self.network_type == NetworkTypes.JEFF_M_DL_18_1_4_V1):
+            max_len = 9
+            offset  = False
+        elif (self.network_type == NetworkTypes.JEFF_M_DL_16_1_4_V1):
+            max_len = 8
+            offset  = False
+        elif (self.network_type == NetworkTypes.JEFF_M_DL_14_1_4_V1):
+            max_len = 7
+            offset  = False
+        elif (self.network_type == NetworkTypes.JEFF_M_DL_12_1_4_V1):
+            max_len = 6
+            offset  = False
         elif (self.network_type == NetworkTypes.JEFF_M_DL_10_5_4_V1 or
             self.network_type == NetworkTypes.JEFF_M_DL_10_1_4_V1):
             max_len = 5

@@ -32,12 +32,15 @@ creator.create("FitnessMulti", base.Fitness, weights=(1,-1))
 creator.create("Individual", list, fitness=creator.FitnessMulti)
 
 # Some constants
-P_BIT_MUTATE = 0.05
-TOURN_SIZE   = 3
-P_MUTATE     = 0.2
-P_CROSSOVER  = 0.5
-WEIGHT_MIN   = -5.0
-WEIGHT_MAX   = 5.0
+P_BIT_MUTATE    = 0.05
+GENS_DEF        = 200
+POP_DEF         = 300
+MOVES_DEF       = 325
+ELITE_COUNT_DEF = 3
+P_MUTATE_DEF    = 0.2
+P_CROSSOVER_DEF = 0.5
+WEIGHT_MIN_DEF  = -5.0
+WEIGHT_MAX_DEF  = 5.0
 
 def __recordSingleRun(tp, run_id, gen_i, runtime_i, moves_hof_i,
     food_hof_i, record_l, hof_individual_npa, moves_stats_i):
@@ -101,11 +104,14 @@ def main():
         "of genetic algorithm.",
         formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("-g", "--generations", type=int, nargs="?",
-        default=200, help="Number of generations to run for.")
+        default=GENS_DEF,
+        help="Number of generations to run for.")
     parser.add_argument("-p", "--population", type=int, nargs="?",
-        default=300, help="Size of the population.")
+        default=POP_DEF,
+        help="Size of the population.")
     parser.add_argument("-m", "--moves", type=int, nargs="?",
-        default=325, help="Maximum moves for agent.")
+        default=MOVES_DEF,
+        help="Maximum moves for agent.")
     parser.add_argument("-n", "--network", type=int, nargs="?",
         default=1,
         help=textwrap.dedent("Network type to use. Valid options are:\n" +
@@ -117,16 +123,36 @@ def main():
             "Trail to use. Valid options (with recommended moves) are:\n" +
             trail_types_s),
         choices=valid_trail_opts)
+
+    parser.add_argument("--prob-mutate", type=float, nargs="?",
+        default=P_MUTATE_DEF,
+        help="Probability of a mutation to occur.")
+    parser.add_argument("--prob-crossover", type=float, nargs="?",
+        default=P_CROSSOVER_DEF,
+        help="Probability of crossover to occur.")
+    parser.add_argument("--weight-min", type=float, nargs="?",
+        default=WEIGHT_MIN_DEF,
+        help="Minimum weight.")
+    parser.add_argument("--weight-max", type=float, nargs="?",
+        default=WEIGHT_MAX_DEF,
+        help="Maximum weight")
+    parser.add_argument("--elite-count", type=float, nargs="?",
+        default=ELITE_COUNT_DEF,
+        help="Number of elites taken after each generation.")
+
     parser.add_argument("-z", "--enable-zmq-updates", action='store_true',
         help="Enable use of ZMQ messaging for real-time GUI monitoring.")
     parser.add_argument("-r", "--repeat", type=int, nargs="?",
         default=1, help="Number of times to run simulations.")
     parser.add_argument("--disable-db",
-        action='store_true')
+        action='store_true',
+        help="Disables logging of run to database.")
     parser.add_argument("--debug",
         action='store_true',
         help="Enables debug messages and flag for data in DB.")
-    parser.add_argument("-q", "--quiet", action='store_true')
+    parser.add_argument("-q", "--quiet",
+        action='store_true',
+        help="Disables all output from application.")
     args = parser.parse_args()
 
     run_date = time.time()
@@ -140,6 +166,10 @@ def main():
 
     if args.quiet:
         root.propogate = False
+
+    if args.weight_min > args.weight_max:
+        logging.critical("Minimum weight must be greater than max weight.")
+        sys.exit(1)
 
     # Get the name of this agent trail for later use
     at = AgentTrail()
@@ -182,7 +212,8 @@ def main():
 
         toolbox = base.Toolbox()
         toolbox.register("map", scoop.futures.map)
-        toolbox.register("attr_float", random.uniform, a=WEIGHT_MIN, b=WEIGHT_MAX)
+        toolbox.register("attr_float", random.uniform,
+            a=args.weight_min, b=args.weight_max)
         toolbox.register("individual", tools.initRepeat, creator.Individual,
             toolbox.attr_float, n=len(AgentNetwork(args.network).network.params))
         toolbox.register("population", tools.initRepeat, list,
@@ -192,7 +223,8 @@ def main():
             trail=args.trail, network_type=args.network)
         toolbox.register("mate", tools.cxTwoPoint)
         toolbox.register("mutate", tools.mutFlipBit, indpb=P_BIT_MUTATE)
-        toolbox.register("select", tools.selTournament, tournsize=TOURN_SIZE)
+        toolbox.register("select", tools.selTournament,
+            tournsize=args.elite_count)
 
         # Start a new evolution
         population = toolbox.population(n=args.population)
@@ -224,7 +256,7 @@ def main():
 
             # Vary the pool of individuals
             offspring = algorithms.varAnd(offspring, toolbox,
-                cxpb=P_CROSSOVER, mutpb=P_MUTATE)
+                cxpb=args.prob_crossover, mutpb=args.prob_mutate)
 
             # Evaluate the individuals with an invalid fitness
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
@@ -314,11 +346,11 @@ def main():
             run_info["generations"]  = args.generations
             run_info["population"]   = args.population
             run_info["moves_limit"]  = args.moves
-            run_info["elite_count"]  = TOURN_SIZE
-            run_info["p_mutate"]     = P_MUTATE
-            run_info["p_crossover"]  = P_CROSSOVER
-            run_info["weight_min"]   = WEIGHT_MIN
-            run_info["weight_max"]   = WEIGHT_MAX
+            run_info["elite_count"]  = args.elite_count
+            run_info["p_mutate"]     = args.prob_mutate
+            run_info["p_crossover"]  = args.prob_crossover
+            run_info["weight_min"]   = args.weight_min
+            run_info["weight_max"]   = args.weight_max
             run_info["debug"]        = args.debug
             run_info["runtime"]      = (datetime.datetime.now() -
                 repeat_start_time)
