@@ -58,6 +58,25 @@ class AgentTrail:
         self.__currY = currPos[0].item(0)
         self.__currX = currPos[1].item(0)
 
+    def readTrailInstant(self, trail_m, trail_s, rot_i):
+        self.__data_matrix = trail_m
+        self.__trail_name  = trail_s
+        self.__rotation    = rot_i
+
+        self.__food_total  = np.where(self.__data_matrix == GridVals.FOOD)[0].size
+
+        self.__maxY, self.__maxX = self.__data_matrix.shape
+        self.__maxX            = self.__maxX - 1
+        self.__maxY            = self.__maxY - 1
+
+        # Determine the ant's current type and position
+        self.__updateAgentRotType()
+
+        # TODO: Add some robustness here in handling invalid data files.
+        currPos = np.where(self.__data_matrix == self.__curr_agent)
+        self.__currY = currPos[0].item(0)
+        self.__currX = currPos[1].item(0)
+
     def moveForward(self):
         """ Moves the agent forward a square relative to its current position.
         """

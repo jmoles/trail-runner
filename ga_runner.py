@@ -42,18 +42,11 @@ P_CROSSOVER_DEF = 0.5
 WEIGHT_MIN_DEF  = -5.0
 WEIGHT_MAX_DEF  = 5.0
 
-def __recordSingleRun(tp, run_id, gen_i, runtime_i, moves_hof_i,
-    food_hof_i, record_l, hof_individual_npa, moves_stats_i):
-
-    record_info = {}
-
-
-
-def __singleMazeTask(individual, moves, trail, network_type,
-    stats_run = False):
+def __singleMazeTask(individual, moves, trail_matrix, trail_name, trail_rot,
+    network_type, stats_run = False):
     an = AgentNetwork(network_type)
     at = AgentTrail()
-    at.readTrail(trail)
+    at.readTrailInstant(trail_matrix, trail_name, trail_rot)
 
     num_moves = 0
 
@@ -97,6 +90,7 @@ def main():
 
     network_types_s, valid_net_opts = pgdb.fetchNetworkCmdPrettyPrint()
     trail_types_s, valid_trail_opts = pgdb.fetchTrailList()
+
 
     # Parse the arguments
     parser = argparse.ArgumentParser(
@@ -219,8 +213,14 @@ def main():
         toolbox.register("population", tools.initRepeat, list,
             toolbox.individual)
 
+        # Query the database to get the trail information.
+        (data_matrix,
+        db_trail_name,
+        init_rot) = pgdb.getTrailData(args.trail)
+
         toolbox.register("evaluate", __singleMazeTask, moves=args.moves,
-            trail=args.trail, network_type=args.network)
+            trail_matrix=data_matrix, trail_name=db_trail_name,
+            trail_rot=init_rot, network_type=args.network)
         toolbox.register("mate", tools.cxTwoPoint)
         toolbox.register("mutate", tools.mutFlipBit, indpb=P_BIT_MUTATE)
         toolbox.register("select", tools.selTournament,
@@ -296,8 +296,9 @@ def main():
                 # Record the statistics for this run.
                 _, _, this_move_stats = (
                 __singleMazeTask(tools.selBest(
-                population, k=1)[0],
-                args.moves, args.trail, args.network, True))
+                population, k=1)[0],args.moves,
+                data_matrix, db_trail_name,
+                init_rot, args.network, True))
 
                 record_info                  = {}
                 record_info["gen"]           = gen - 1
