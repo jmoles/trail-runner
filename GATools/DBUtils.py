@@ -156,3 +156,85 @@ class DBUtils:
 
         curs.close()
         conn.close()
+
+    def findRuns(self, network=1, trail=3, gen=200, pop=300):
+        conn = psycopg2.connect(self.__dsn)
+        curs = conn.cursor()
+
+        curs.execute("""SELECT id
+            FROM run
+            WHERE trails_id=%s AND
+            networks_id=%s AND
+            generations=%s AND
+            population=%s;""",
+            (trail,
+            network,
+            gen,
+            pop))
+
+        ret_val = []
+        for record in curs:
+            ret_val.append(record[0])
+
+        curs.close()
+        conn.close()
+
+        return ret_val
+
+
+
+
+    def fetchRunGenerations(self, run_id):
+        conn = psycopg2.connect(self.__dsn)
+        curs = conn.cursor()
+
+        curs.execute("""SELECT generation, runtime,
+            food_min, food_max, food_avg, food_std,
+            moves_min, moves_max, moves_avg, moves_std,
+            moves_left, moves_right, moves_forward, moves_none
+            FROM generations
+            WHERE run_id IN %s;""", (tuple(run_id), ) )
+
+        ret_val = []
+        curr_dict = {}
+
+        prev_gen_id = 0
+
+        for record in curs:
+
+            if (record[0] < prev_gen_id):
+                ret_val.append(curr_dict)
+                curr_dict         = {}
+
+            # TODO: Alignment here
+            food_d = {}
+            food_d["min"] = record[2]
+            food_d["max"] = record[3]
+            food_d["avg"] = record[4]
+            food_d["std"] = record[5]
+
+            move_d = {}
+            move_d["min"] = record[6]
+            move_d["max"] = record[7]
+            move_d["avg"] = record[8]
+            move_d["std"] = record[9]
+            move_d["left"] = record[10]
+            move_d["right"] = record[11]
+            move_d["forward"] = record[12]
+            move_d["none"] = record[13]
+
+            data_d = {}
+            data_d["food"] = food_d
+            data_d["moves"] = move_d
+
+            curr_dict[record[0]] = data_d
+
+            prev_gen_id = record[0]
+
+        curs.close()
+        conn.close()
+
+        return ret_val
+
+
+
