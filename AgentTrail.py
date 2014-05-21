@@ -1,6 +1,6 @@
 import numpy as np
 
-from DBUtils import DBUtils
+from GATools.DBUtils import DBUtils
 
 class GridVals:
     EMPTY  = 0 # Nothing in this square

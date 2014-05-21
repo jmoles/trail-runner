@@ -11,7 +11,7 @@ from TrailUI import TrailUI
 from AgentGA import AgentGA
 from AgentNetwork import AgentNetwork, NetworkTypes
 from AgentTrail import AgentTrail
-from DBUtils import DBUtils
+from GATools.DBUtils import DBUtils
 from GASettings import GASettings
 
 class Communicate(QtCore.QObject):

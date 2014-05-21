@@ -19,7 +19,7 @@ import zmq
 
 from AgentNetwork import AgentNetwork, NetworkTypes
 from AgentTrail import AgentTrail
-from DBUtils import DBUtils
+from GATools.DBUtils import DBUtils
 
 try:
     import progressbar
