@@ -152,10 +152,10 @@ class DBUtils:
 
         curs_results = curs.fetchall()[0]
 
-        return np.matrix(curs_results[0]), curs_results[1], curs_results[2]
-
         curs.close()
         conn.close()
+
+        return np.matrix(curs_results[0]), curs_results[1], curs_results[2]
 
     def findRuns(self, network=1, trail=3, gen=200, pop=300):
         conn = psycopg2.connect(self.__dsn)
@@ -180,9 +180,6 @@ class DBUtils:
         conn.close()
 
         return ret_val
-
-
-
 
     def fetchRunGenerations(self, run_id):
         conn = psycopg2.connect(self.__dsn)
@@ -236,5 +233,20 @@ class DBUtils:
 
         return ret_val
 
+    def getMaxFoodAtGeneration(self, run_ids, generation):
+        conn = psycopg2.connect(self.__dsn)
+        curs = conn.cursor()
+
+        curs.execute("""SELECT MAX(food_max) AS food_max
+            FROM generations
+            WHERE generation=%s AND
+            run_id IN %s;""", (generation - 1, tuple(run_ids), ) )
+
+        ret_val = curs.fetchall()[0][0]
+
+        curs.close()
+        conn.close()
+
+        return ret_val
 
 

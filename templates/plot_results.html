@@ -1,0 +1,30 @@
+<!doctype html>
+
+
+<html>
+
+	<head>
+		<meta charset = "utf-8">
+		<title>{{ title }}</title>
+
+	</head>
+
+	<body>
+		<h1>{{ title }}</h1>
+
+		<div id="image">
+			<img src="data:image/png;base64,{{ image_data }}" />
+		</div>
+
+		<div id="urls">
+			<a href="{{ pdf_url }}">Download PDF</a> |
+			<a href="{{ eps_url }}">Download EPS</a> |
+			<a href="{{ jpg_url }}">Download JPG</a>
+		</div>
+
+		<div id="footer">
+			Generated in {{ time_sec }} seconds.
+		</div>
+
+	</body>
+</html>

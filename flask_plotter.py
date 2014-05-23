@@ -1,7 +1,8 @@
 import datetime
 import os
 import StringIO
-from flask import Flask, render_template, request, make_response
+import base64
+from flask import Flask, render_template, request, make_response, url_for
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_agg as pltagg
 import numpy as np
@@ -55,67 +56,153 @@ def index():
         get_networks=get_networks)
 
 @app.route(
-    "/plot/<int:type>/<int:network>/<int:trail>/<int:gen>/<int:pop>")
-def do_plot(type, network, trail, gen, pop):
-    start = datetime.datetime.now()
+    "/plot_img/<int:plot_type>/<int:network>/" +
+    "<int:trail>/<int:gen>/<int:pop>/<ext>")
+def plot_img(plot_type, network, trail, gen, pop, ext, inline=False):
+    """ Generates an image of specified by ext.
 
-    # Fetch all of the run ids that match the criteria.
-    ids_l = pgdb.findRuns(network, trail, gen, pop)
+    Keyword arguments:
+    plot_type -- The type of plot to generate with this enumeration:
+        0 : Plot all matching runs with generations on x-axis.
+        1 : Plot all matching runs with max atfinal generation plotted
+            against networks sweeping from 2 up to 10. Network is ignored
+            for this search.
 
-    print "IDs Query Time " + str(datetime.datetime.now() - start)
+    """
 
-    # Take each run and now fetch data for each.
-    start = datetime.datetime.now()
-    gens_data = pgdb.fetchRunGenerations(ids_l)
-    # gens_data = []
-    # for curr_id in ids_l:
-    #     gens_data.append(pgdb.fetchRunGenerations(curr_id))
-
-    print "Gens Query Time " + str(datetime.datetime.now() - start)
-
-    # Find the network name.
-    start = datetime.datetime.now()
-    net_name = pgdb.getNetworks()[network]
-    print "Network Name Query Time " + str(datetime.datetime.now() - start)
-
-    # Find the trail name.
-    start = datetime.datetime.now()
-    trail_name = pgdb.getTrails()[trail]
-    print "Trail Name Query Time " + str(datetime.datetime.now() - start)
-
-    # Determine the maximum amount of food
-    start = datetime.datetime.now()
-    traiL_grid, _, _ = pgdb.getTrailData(trail)
-    print "Trail Data Query Time " + str(datetime.datetime.now() - start)
-    max_food = np.bincount(np.array(traiL_grid.flatten())[0])[1]
-
-    # Manipulate thie data into preperation for a plot.
-    plot_data = np.zeros((len(gens_data), gen))
-
-    item_idx = 0
-    for curr_gdata in gens_data:
-        for curr_gen in range(0, gen):
-            plot_data[item_idx][curr_gen] = curr_gdata[curr_gen]["food"]["max"]
-        item_idx = item_idx + 1
-
-    x = np.linspace(0, gen - 1, num=gen)
-
+    # Generate the figure and axes common to all of these.
     fig = plt.Figure()
     axis = fig.add_subplot(1,1,1)
 
-    axis.plot(x, np.transpose(plot_data), '-')
-    axis.plot(x, np.repeat(np.array(max_food), gen), 'r--')
-    axis.axis((0, gen, 0, max_food + 5))
-    axis.set_xlabel("Generations")
-    axis.set_ylabel("Food Consumed")
-    axis.set_title(net_name + " - " + trail_name + " g{0}/p{1}".format(gen, pop))
+    # Determine the maximum amount of food
+    traiL_grid, _, _ = pgdb.getTrailData(trail)
+    max_food = np.bincount(np.array(traiL_grid.flatten())[0])[1]
+
+    if plot_type == 0:
+        # Fetch all of the run ids that match the criteria.
+        ids_l = pgdb.findRuns(network, trail, gen, pop)
+
+        # Take each run and now fetch data for each.
+        gens_data = pgdb.fetchRunGenerations(ids_l)
+
+        # Find the network name.
+        net_name = pgdb.getNetworks()[network]
+
+        # Find the trail name.
+        trail_name = pgdb.getTrails()[trail]
+
+        # Manipulate thie data into preperation for a plot.
+        plot_data = np.zeros((len(gens_data), gen))
+
+        item_idx = 0
+        for curr_gdata in gens_data:
+            for curr_gen in range(0, gen):
+                print plot_data
+                plot_data[item_idx][curr_gen] = (
+                    curr_gdata[curr_gen]["food"]["max"])
+            item_idx = item_idx + 1
+
+        x = np.linspace(0, gen - 1, num=gen)
+
+        plot_title = (
+            "{0} - {1} g{2}/p{3}".format(
+                net_name, trail_name, gen, pop))
+
+        axis.plot(x, np.transpose(plot_data), '-')
+        axis.plot(x, np.repeat(np.array(max_food), gen), 'r--')
+        axis.axis((0, gen, 0, max_food + 5))
+        axis.set_xlabel("Generations")
+        axis.set_ylabel("Food Consumed")
+        axis.set_title(plot_title)
+
+    elif plot_type == 1:
+        nets = [4, 5, 7, 3, 8, 9, 10, 11, 12]
+
+        max_foods = []
+
+        # Go through each network and get the maximum at the generation.
+        for curr_net in nets:
+            # Fetch all of the run ids that match the criteria.
+            ids_l = pgdb.findRuns(curr_net, trail, gen, pop)
+
+            curr_val = pgdb.getMaxFoodAtGeneration(ids_l, gen)
+
+            max_foods.append(curr_val)
+
+        x = np.linspace(2, 10, num=9)
+
+        plot_title = (
+            "Max food sweep with MDLn (2n)-1-4 Networks g{0}/p{1}".format(
+                gen, pop))
+        axis.plot(x, max_foods, '-')
+        axis.plot(x, np.repeat(np.array(max_food), len(x)), 'r--')
+        axis.axis((min(x), max(x), 0, max_food + 5))
+        axis.set_xlabel("Delay Line Length")
+        axis.set_ylabel("Food Consumed")
+        axis.set_title(plot_title)
+
 
     canvas = pltagg.FigureCanvasAgg(fig)
     output = StringIO.StringIO()
-    canvas.print_png(output)
-    response = make_response(output.getvalue())
-    response.mimetype = "image/png"
-    return response
+
+    if ext == "tif" or ext == "tiff":
+        canvas.print_tif(output)
+    elif ext == "bmp":
+        canvas.print_bmp(output)
+        this_mime = "image/bmp"
+    elif ext == "eps":
+        canvas.print_eps(output)
+        this_mime = "application/postscript"
+    elif ext == "png":
+        canvas.print_png(output)
+        this_mime = "image/png"
+    elif ext == "pdf":
+        canvas.print_pdf(output)
+        this_mime = "application/pdf"
+    elif ext == "svg":
+        canvas.print_svg(output)
+        this_mime = "image/svg+xml"
+    else:
+        canvas.print_jpg(output)
+        this_mime = "image/jpg"
+        ext = "jpg"
+
+    if (inline):
+        return base64.b64encode(output.getvalue()), plot_title
+    else:
+        response = make_response(output.getvalue())
+        response.mimetype = this_mime
+        response.headers['Content-Disposition'] = (
+            'filename=plot.{0}'.format(ext))
+        return response
+
+
+@app.route(
+    "/plot/<int:plot_type>/<int:network>/<int:trail>/<int:gen>/<int:pop>")
+def plot(plot_type, network, trail, gen, pop):
+    start = datetime.datetime.now()
+
+    output, plot_title = plot_img(
+        plot_type, network, trail, gen, pop, "png", True)
+
+    finish_time_s = str((datetime.datetime.now() - start).total_seconds())
+
+    pdf_url = url_for(
+        'plot_img', plot_type=plot_type, network=network,
+        trail=trail, gen=gen, pop=pop, ext="pdf")
+
+    eps_url = url_for(
+        'plot_img', plot_type=plot_type, network=network,
+        trail=trail, gen=gen, pop=pop, ext="eps")
+
+    jpg_url = url_for(
+        'plot_img', plot_type=plot_type, network=network,
+        trail=trail, gen=gen, pop=pop, ext="jpg")
+
+    return render_template(
+        "plot_results.html", title=plot_title, image_data=output,
+        time_sec=finish_time_s, pdf_url=pdf_url, eps_url=eps_url,
+        jpg_url=jpg_url)
 
 
 @app.route("/show.png")
@@ -131,8 +218,6 @@ def show_plot():
 
     axis.plot(xs, ys)
 
-
-
     canvas = pltagg.FigureCanvasAgg(fig)
     output = StringIO.StringIO()
     canvas.print_png(output)
@@ -141,8 +226,5 @@ def show_plot():
     return response
 
 
-    pass
-
-
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True)
