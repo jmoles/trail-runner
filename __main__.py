@@ -3,7 +3,7 @@ import logging
 import sys
 from PySide import QtCore, QtGui
 
-from GAApplication import GAApplication
+from GATools.gui.app import app
 
 # Configure Logging
 root = logging.getLogger()
@@ -14,7 +14,7 @@ def main():
     # Exception Handling
     try:
         myApp = QtGui.QApplication(sys.argv)
-        gaa   = GAApplication()
+        gaa   = app()
         gaa.show()
         sys.exit(myApp.exec_())
     except NameError:

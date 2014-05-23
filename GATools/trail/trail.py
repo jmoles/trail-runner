@@ -1,6 +1,6 @@
 import numpy as np
 
-from GATools.DBUtils import DBUtils
+from ..DBUtils import DBUtils
 
 class GridVals:
     EMPTY  = 0 # Nothing in this square
@@ -13,7 +13,7 @@ class GridVals:
     END    = 8 # Optimal ending point for the agent.
     HIST   = 9 # History of the agent.
 
-class AgentTrail:
+class trail:
     """ Class to handle the trail for the agent to move through.
     """
     # Constants

@@ -1,7 +1,7 @@
 import logging
 from PySide import QtCore, QtGui
 
-class GASettings(QtCore.QSettings):
+class settings(QtCore.QSettings):
 
     VERSION = 6
 
@@ -14,7 +14,7 @@ class GASettings(QtCore.QSettings):
     def __init__(self):
         self.__configureProgramInfo()
 
-        super(GASettings, self).__init__()
+        super(settings, self).__init__()
 
         self.__initSettings()
 

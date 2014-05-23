@@ -1,9 +1,10 @@
 import math
 import numpy as np
 from PySide import QtCore, QtGui
-from AgentTrail import AgentTrail, GridVals
+from ..trail.trail import trail as AgentTrail
+from ..trail.trail import GridVals
 
-from GASettings import GASettings
+from .settings import settings as GASettings
 
 class Solarized():
     BASE03  = QtGui.QColor("#002b36")
@@ -26,7 +27,7 @@ class Solarized():
 class Communicate(QtCore.QObject):
     msgToSB = QtCore.Signal(str)
 
-class TrailUI(QtGui.QFrame):
+class trail(QtGui.QFrame):
     """ Trail class that is the central widget in the main window.
     """
     ROTATE_ANGLE   = 90
@@ -37,7 +38,7 @@ class TrailUI(QtGui.QFrame):
 
     # Constructor function
     def __init__(self, parent, trail_num):
-        super(TrailUI, self).__init__()
+        super(trail, self).__init__()
 
         # Used to get to settings
         self.settings = GASettings()
@@ -72,8 +73,8 @@ class TrailUI(QtGui.QFrame):
         self.setSizePolicy(QtGui.QSizePolicy.Minimum,
             QtGui.QSizePolicy.Minimum)
 
-        self.__agent_delta = int(self.settings.value(TrailUI.AGENT_DELTA_S))
-        self.__grid_size   = int(self.settings.value(TrailUI.RECT_SIZE_S))
+        self.__agent_delta = int(self.settings.value(trail.AGENT_DELTA_S))
+        self.__grid_size   = int(self.settings.value(trail.RECT_SIZE_S))
 
         self.__last_number = ""
 
@@ -95,8 +96,8 @@ class TrailUI(QtGui.QFrame):
 
     @QtCore.Slot(bool)
     def settingsUpdated(self):
-        self.__agent_delta = int(self.settings.value(TrailUI.AGENT_DELTA_S))
-        self.__grid_size   = int(self.settings.value(TrailUI.RECT_SIZE_S))
+        self.__agent_delta = int(self.settings.value(trail.AGENT_DELTA_S))
+        self.__grid_size   = int(self.settings.value(trail.RECT_SIZE_S))
 
         if self.timer.isActive():
             self.timer.stop()

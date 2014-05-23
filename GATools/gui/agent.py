@@ -17,11 +17,11 @@ class Communicate(QtCore.QObject):
     newGen        = QtCore.Signal(str)
     newTime       = QtCore.Signal(str)
 
-class AgentGA(QtCore.QThread):
+class agent(QtCore.QThread):
 
     def __init__(self, bar=None, gen_label=None, time_label=None,
         network=0, log_dir=None):
-        super(AgentGA, self).__init__()
+        super(agent, self).__init__()
         self.filename   = ""
         self.moves      = 0
         self.pop_size   = 0

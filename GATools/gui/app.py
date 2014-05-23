@@ -7,22 +7,22 @@ from numpy import matrix
 from PySide import QtCore, QtGui
 from deap import algorithms, base, creator, tools
 
-from TrailUI import TrailUI
-from AgentGA import AgentGA
-from AgentNetwork import AgentNetwork, NetworkTypes
-from AgentTrail import AgentTrail
-from GATools.DBUtils import DBUtils
-from GASettings import GASettings
+from .trail import trail as TrailUI
+from .agent import agent
+from ..trail.network import network
+from ..trail.trail import trail
+from ..DBUtils import DBUtils
+from .settings import settings as GASettings
 
 class Communicate(QtCore.QObject):
     newFile  = QtCore.Signal(str)
     newSpeed = QtCore.Signal(int)
     newProg  = QtCore.Signal(int)
 
-class GAApplication(QtGui.QMainWindow):
+class app(QtGui.QMainWindow):
 
     def __init__(self):
-        super(GAApplication, self).__init__()
+        super(app, self).__init__()
 
         # Configure and open settings
         self.settings = GASettings()
@@ -82,7 +82,7 @@ class GAApplication(QtGui.QMainWindow):
         self.createDocks()
 
         # Set up the thread to run Genetic Algorithms
-        self.ga_thread  = AgentGA(self.progress_bar, self.gen_label,
+        self.ga_thread  = agent(self.progress_bar, self.gen_label,
             self.time_label)
 
         # Connect the signals and slots
@@ -293,8 +293,8 @@ class GAApplication(QtGui.QMainWindow):
         Args:
         individual (list): List of float weights used for activation network.
         """
-        an    = AgentNetwork(self.__network_idx)
-        at    = AgentTrail()
+        an    = network(self.__network_idx)
+        at    = trail()
         moves = ""
 
         at.readTrail(self.trail_num)

@@ -14,11 +14,11 @@ import string
 import sys
 import textwrap
 import time
-import uuid
 import zmq
 
-from AgentNetwork import AgentNetwork, NetworkTypes
-from AgentTrail import AgentTrail
+from GATools.trail.network import network as AgentNetwork
+from GATools.trail.network import NetworkTypes
+from GATools.trail.trail import trail as AgentTrail
 from GATools.DBUtils import DBUtils
 
 try:
@@ -67,17 +67,14 @@ def __singleMazeTask(individual, moves, trail_matrix, trail_name, trail_rot,
 
         if(currMove == 1):
             at.turnLeft()
-            move_stats["left"] += 1
         elif(currMove == 2):
             at.turnRight()
-            move_stats["right"] += 1
         elif(currMove == 3):
             at.moveForward()
-            move_stats["forward"] += 1
         else:
-            move_stats["none"] += 1
+            at.noMove()
 
-        num_moves += 1
+        num_moves += at.getNumMoves()
 
     if stats_run:
         return (at.getFoodConsumed(), num_moves, move_stats)
@@ -90,7 +87,6 @@ def main():
 
     network_types_s, valid_net_opts = pgdb.fetchNetworkCmdPrettyPrint()
     trail_types_s, valid_trail_opts = pgdb.fetchTrailList()
-
 
     # Parse the arguments
     parser = argparse.ArgumentParser(
@@ -198,11 +194,6 @@ def main():
             context   = zmq.Context()
             sender    = context.socket(zmq.PUSH)
             sender.bind("tcp://*:9854")
-
-        uuid_str = list(str(uuid.uuid4()).replace("-",""))
-        uuid_str[0] = random.choice(string.letters)
-        uuid_str = "".join(uuid_str)
-
 
         toolbox = base.Toolbox()
         toolbox.register("map", scoop.futures.map)

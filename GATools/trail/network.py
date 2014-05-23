@@ -16,7 +16,7 @@ class NetworkTypes:
     JEFF_M_DL_20_1_4_V1 = 12
 
 
-class AgentNetwork:
+class network:
     def __init__(self, network_type=NetworkTypes.JEFFERSON):
         self.network_type = network_type
 
