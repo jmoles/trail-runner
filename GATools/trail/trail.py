@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..DBUtils import DBUtils
+from DBUtils import DBUtils
 
 class GridVals:
     EMPTY  = 0 # Nothing in this square
@@ -12,6 +12,8 @@ class GridVals:
     OPT    = 7 # Optimal route for the agent.
     END    = 8 # Optimal ending point for the agent.
     HIST   = 9 # History of the agent.
+
+    FULL_LIST = [EMPTY, FOOD, ANT0, ANT90, ANT180, ANT270, OPT, END, HIST]
 
 class trail:
     """ Class to handle the trail for the agent to move through.
@@ -50,13 +52,13 @@ class trail:
         self.__maxX            = self.__maxX - 1
         self.__maxY            = self.__maxY - 1
 
-        # Determine the ant's current type and position
-        self.__updateAgentRotType()
-
-        # TODO: Add some robustness here in handling invalid data files.
         currPos = np.where(self.__data_matrix == self.__curr_agent)
         self.__currY = currPos[0].item(0)
         self.__currX = currPos[1].item(0)
+
+        # Determine the ant's current type and position
+        self.__updateAgentRotType()
+
 
     def readTrailInstant(self, trail_m, trail_s, rot_i):
         self.__data_matrix = trail_m
@@ -69,13 +71,13 @@ class trail:
         self.__maxX            = self.__maxX - 1
         self.__maxY            = self.__maxY - 1
 
-        # Determine the ant's current type and position
-        self.__updateAgentRotType()
-
-        # TODO: Add some robustness here in handling invalid data files.
         currPos = np.where(self.__data_matrix == self.__curr_agent)
         self.__currY = currPos[0].item(0)
         self.__currX = currPos[1].item(0)
+
+        # Determine the ant's current type and position
+        self.__updateAgentRotType()
+
 
     def moveForward(self):
         """ Moves the agent forward a square relative to its current position.

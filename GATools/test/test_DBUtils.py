@@ -1,11 +1,12 @@
-import DBUtils
+import os
 import unittest
+
+from DBUtils import DBUtils
 
 class TestSequenceFunctions(unittest.TestCase):
 
     def setUp(self):
-        self.pgdb = DBUtils.DBUtils(host="localhost", db="jmoles",
-        user="josh", password="")
+        self.pgdb = DBUtils(password=os.environ['PSYCOPG2_DB_PASS'])
 
     def testNetworkList(self):
         net_s, net_i, net_l = self.pgdb.fetchNetworksList()
