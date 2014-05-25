@@ -3,7 +3,7 @@ import unittest
 
 from DBUtils import DBUtils
 
-class TestSequenceFunctions(unittest.TestCase):
+class TestDatabaseUtils(unittest.TestCase):
 
     def setUp(self):
         self.pgdb = DBUtils(password=os.environ['PSYCOPG2_DB_PASS'])

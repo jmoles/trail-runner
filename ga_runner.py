@@ -17,7 +17,6 @@ import time
 import zmq
 
 from GATools.trail.network import network as AgentNetwork
-from GATools.trail.network import NetworkTypes
 from GATools.trail.trail import trail as AgentTrail
 from GATools.DBUtils import DBUtils
 
@@ -43,20 +42,13 @@ WEIGHT_MIN_DEF  = -5.0
 WEIGHT_MAX_DEF  = 5.0
 
 def __singleMazeTask(individual, moves, trail_matrix, trail_name, trail_rot,
-    network_type, stats_run = False):
-    an = AgentNetwork(network_type)
+    pb_network, detailed_stats=False):
+    an = AgentNetwork()
+    an.readNetworkInstant(pb_network)
     at = AgentTrail()
     at.readTrailInstant(trail_matrix, trail_name, trail_rot)
 
-    num_moves = 0
-
-    an.network._setParameters(individual)
-
-    move_stats            = {}
-    move_stats["none"]    = 0
-    move_stats["left"]    = 0
-    move_stats["right"]   = 0
-    move_stats["forward"] = 0
+    an.updateParameters(individual)
 
     for _ in xrange(moves):
         # If all of the food is collected, done
@@ -74,12 +66,10 @@ def __singleMazeTask(individual, moves, trail_matrix, trail_name, trail_rot,
         else:
             at.noMove()
 
-        num_moves += at.getNumMoves()
-
-    if stats_run:
-        return (at.getFoodConsumed(), num_moves, move_stats)
+    if detailed_stats == True:
+        return (at.getFoodConsumed(), at.getNumMoves(), at.getMovesStats())
     else:
-        return (at.getFoodConsumed(), num_moves)
+        return (at.getFoodConsumed(), at.getNumMoves())
 
 def main():
     # Query the database to gather some items for argument output.
@@ -177,6 +167,11 @@ def main():
     else:
         pbar = None
 
+    # Query the database to get the network information.
+    pybrain_network = pgdb.getNetworkByID(args.network)
+
+    network_params_len = len(pybrain_network.params)
+
     for curr_repeat in range(0, args.repeat):
         repeat_start_time = datetime.datetime.now()
 
@@ -187,7 +182,7 @@ def main():
 
         # Prepare the array for storing hall of fame.
         hof_array = np.zeros((args.generations,
-            AgentNetwork(args.network).getParamsLength()))
+            network_params_len))
 
         if(args.enable_zmq_updates):
             # Configure ZMQ - Publisher role
@@ -200,7 +195,7 @@ def main():
         toolbox.register("attr_float", random.uniform,
             a=args.weight_min, b=args.weight_max)
         toolbox.register("individual", tools.initRepeat, creator.Individual,
-            toolbox.attr_float, n=len(AgentNetwork(args.network).network.params))
+            toolbox.attr_float, n=network_params_len)
         toolbox.register("population", tools.initRepeat, list,
             toolbox.individual)
 
@@ -211,7 +206,7 @@ def main():
 
         toolbox.register("evaluate", __singleMazeTask, moves=args.moves,
             trail_matrix=data_matrix, trail_name=db_trail_name,
-            trail_rot=init_rot, network_type=args.network)
+            trail_rot=init_rot, pb_network=pybrain_network)
         toolbox.register("mate", tools.cxTwoPoint)
         toolbox.register("mutate", tools.mutFlipBit, indpb=P_BIT_MUTATE)
         toolbox.register("select", tools.selTournament,
@@ -289,7 +284,7 @@ def main():
                 __singleMazeTask(tools.selBest(
                 population, k=1)[0],args.moves,
                 data_matrix, db_trail_name,
-                init_rot, args.network, True))
+                init_rot, pybrain_network, True))
 
                 record_info                  = {}
                 record_info["gen"]           = gen - 1

@@ -4,9 +4,9 @@ import os
 import unittest
 
 # Parts of design under test.
-from DBUtils import DBUtils
-from trail.trail import trail
-from trail.trail import GridVals
+from ..DBUtils import DBUtils
+from ..trail.trail import trail
+from ..trail.trail import GridVals
 
 
 TEST_TRAIL = np.matrix(
@@ -30,7 +30,7 @@ AGENT_START_X = 4
 AGENT_START_Y = 4
 
 
-class TestSequenceFunctions(unittest.TestCase):
+class TestTrailFunctions(unittest.TestCase):
 
     def setUp(self):
         # This class requires accessing the database.

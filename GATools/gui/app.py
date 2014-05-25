@@ -299,7 +299,7 @@ class app(QtGui.QMainWindow):
 
         at.readTrail(self.trail_num)
 
-        an.network._setParameters(individual)
+        an.updateParameters(individual)
 
         for _ in xrange(self.moves):
 

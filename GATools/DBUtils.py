@@ -2,6 +2,22 @@ import numpy as np
 import os
 import psycopg2
 
+try:
+    import cPickle as pickle
+except:
+    import pickle
+
+try:
+    import cStringIO as StringIO
+except:
+    import StringIO
+
+class NetworkNotFound(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
 
 class DBUtils:
     def __init__(self, host="db.cecs.pdx.edu", db="jmoles",
@@ -21,9 +37,9 @@ class DBUtils:
         conn = psycopg2.connect(self.__dsn)
         curs = conn.cursor()
 
-        curs.execute("SELECT * FROM networks")
+        curs.execute("SELECT id, name FROM networks")
         for idx, name in curs.fetchall():
-            net_s += ("\t" + str(idx) + ":" + name + "\n")
+            net_s += ("\t" + str(idx) + ": " + name + "\n")
             net_i.append(idx)
             net_l.append(name)
 
@@ -57,7 +73,7 @@ class DBUtils:
         return trail_s, trail_i
 
     def getNetworks(self):
-        return self.__genericDictGet("SELECT * FROM networks")
+        return self.__genericDictGet("SELECT id, name FROM networks")
 
     def getTrails(self):
         return self.__genericDictGet("SELECT id, name FROM trails")
@@ -248,5 +264,30 @@ class DBUtils:
         conn.close()
 
         return ret_val
+
+
+    def getNetworkByID(self, network_id):
+        conn = psycopg2.connect(self.__dsn)
+        curs = conn.cursor()
+
+        curs.execute("""SELECT net
+            FROM networks
+            WHERE id=%s;""", (network_id, ) )
+
+        results = curs.fetchall()
+
+        if not results:
+            print "No network was found for network_id {0}".format(network_id)
+            raise NetworkNotFound(network_id)
+
+
+        ret_sio = StringIO.StringIO(results[0][0])
+
+        ret_net = pickle.load(ret_sio)
+
+        curs.close()
+        conn.close()
+
+        return ret_net
 
 

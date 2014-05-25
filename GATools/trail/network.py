@@ -1,266 +1,24 @@
 from pybrain.structure import FeedForwardNetwork, LinearLayer, SigmoidLayer, FullConnection, RecurrentNetwork
+
+from pybrain.structure.networks.feedforward import FeedForwardNetworkComponent
+
 import numpy as np
 
-class NetworkTypes:
-    JEFFERSON = 1
-    JEFF_M_DL_10_5_4_V1 = 2
-    JEFF_M_DL_10_1_4_V1 = 3
-    JEFF_M_DL_4_1_4_V1  = 4
-    JEFF_M_DL_6_1_4_V1  = 5
-    JEFF_M_DL_10_1_3_V1 = 6
-    JEFF_M_DL_8_1_4_V1  = 7
-    JEFF_M_DL_12_1_4_V1 = 8
-    JEFF_M_DL_14_1_4_V1 = 9
-    JEFF_M_DL_16_1_4_V1 = 10
-    JEFF_M_DL_18_1_4_V1 = 11
-    JEFF_M_DL_20_1_4_V1 = 12
-
+from ..DBUtils import DBUtils
 
 class network:
-    def __init__(self, network_type=NetworkTypes.JEFFERSON):
-        self.network_type = network_type
+    def __init__(self):
+        pgdb                 = DBUtils()
+        self.__params_length = 0
 
-        self.__history = []
 
-        if self.network_type == NetworkTypes.JEFF_M_DL_10_5_4_V1:
-            # Initalize the history with all trues
-            for _ in range(0,5):
-                self.__history.append(False)
+    def readNetwork(self, network_type):
+        self.network         = pgdb.getNetworkByID(network_type)
+        self.__params_length = len(self.network.params)
 
-            # Build a delay line neural network.
-            self.network = FeedForwardNetwork()
-
-            inLayer = LinearLayer(10)
-            hiddenLayer = SigmoidLayer(5)
-            outputLayer = LinearLayer(4)
-
-            self.network.addInputModule(inLayer)
-            self.network.addModule(hiddenLayer)
-            self.network.addOutputModule(outputLayer)
-
-            self.in_to_hidden     = FullConnection(inLayer, hiddenLayer)
-            self.in_to_out        = FullConnection(inLayer, outputLayer)
-            self.hidden_to_out    = FullConnection(hiddenLayer, outputLayer)
-
-            self.network.addConnection(self.in_to_hidden)
-            self.network.addConnection(self.hidden_to_out)
-            self.network.addConnection(self.in_to_out)
-
-            self.network.sortModules()
-
-            self.__params_length = len(self.network.params)
-
-
-        elif self.network_type == NetworkTypes.JEFF_M_DL_10_1_4_V1:
-            # Initalize the history with all trues
-            for _ in range(0,5):
-                self.__history.append(False)
-
-            # Build a delay line neural network.
-            self.network = FeedForwardNetwork()
-
-            inLayer = LinearLayer(10)
-            hiddenLayer = SigmoidLayer(1)
-            outputLayer = LinearLayer(4)
-
-            self.network.addInputModule(inLayer)
-            self.network.addModule(hiddenLayer)
-            self.network.addOutputModule(outputLayer)
-
-            self.in_to_hidden     = FullConnection(inLayer, hiddenLayer)
-            self.in_to_out        = FullConnection(inLayer, outputLayer)
-            self.hidden_to_out    = FullConnection(hiddenLayer, outputLayer)
-
-            self.network.addConnection(self.in_to_hidden)
-            self.network.addConnection(self.hidden_to_out)
-            self.network.addConnection(self.in_to_out)
-
-            self.network.sortModules()
-
-            self.__params_length = len(self.network.params)
-
-        elif self.network_type == NetworkTypes.JEFF_M_DL_4_1_4_V1:
-            # Initalize the history with all trues
-            for _ in range(0,2):
-                self.__history.append(False)
-
-            # Build a delay line neural network.
-            self.network = FeedForwardNetwork()
-
-            inLayer = LinearLayer(4)
-            hiddenLayer = SigmoidLayer(1)
-            outputLayer = LinearLayer(4)
-
-            self.network.addInputModule(inLayer)
-            self.network.addModule(hiddenLayer)
-            self.network.addOutputModule(outputLayer)
-
-            self.in_to_hidden     = FullConnection(inLayer, hiddenLayer)
-            self.in_to_out        = FullConnection(inLayer, outputLayer)
-            self.hidden_to_out    = FullConnection(hiddenLayer, outputLayer)
-
-            self.network.addConnection(self.in_to_hidden)
-            self.network.addConnection(self.hidden_to_out)
-            self.network.addConnection(self.in_to_out)
-
-            self.network.sortModules()
-
-            self.__params_length = len(self.network.params)
-
-        elif self.network_type == NetworkTypes.JEFF_M_DL_6_1_4_V1:
-            # Initalize the history with all trues
-            for _ in range(0,3):
-                self.__history.append(False)
-
-            # Build a delay line neural network.
-            self.network = FeedForwardNetwork()
-
-            inLayer = LinearLayer(6)
-            hiddenLayer = SigmoidLayer(1)
-            outputLayer = LinearLayer(4)
-
-            self.network.addInputModule(inLayer)
-            self.network.addModule(hiddenLayer)
-            self.network.addOutputModule(outputLayer)
-
-            self.in_to_hidden     = FullConnection(inLayer, hiddenLayer)
-            self.in_to_out        = FullConnection(inLayer, outputLayer)
-            self.hidden_to_out    = FullConnection(hiddenLayer, outputLayer)
-
-            self.network.addConnection(self.in_to_hidden)
-            self.network.addConnection(self.hidden_to_out)
-            self.network.addConnection(self.in_to_out)
-
-            self.network.sortModules()
-
-            self.__params_length = len(self.network.params)
-
-        elif self.network_type == NetworkTypes.JEFF_M_DL_10_1_3_V1:
-            # Initalize the history with all trues
-            for _ in range(0,5):
-                self.__history.append(False)
-
-            # Build a delay line neural network.
-            self.network = FeedForwardNetwork()
-
-            inLayer = LinearLayer(10)
-            hiddenLayer = SigmoidLayer(1)
-            outputLayer = LinearLayer(3)
-
-            self.network.addInputModule(inLayer)
-            self.network.addModule(hiddenLayer)
-            self.network.addOutputModule(outputLayer)
-
-            self.in_to_hidden     = FullConnection(inLayer, hiddenLayer)
-            self.in_to_out        = FullConnection(inLayer, outputLayer)
-            self.hidden_to_out    = FullConnection(hiddenLayer, outputLayer)
-
-            self.network.addConnection(self.in_to_hidden)
-            self.network.addConnection(self.hidden_to_out)
-            self.network.addConnection(self.in_to_out)
-
-            self.network.sortModules()
-
-            self.__params_length = len(self.network.params)
-
-        elif self.network_type == NetworkTypes.JEFF_M_DL_8_1_4_V1:
-            # Initalize the history with all trues
-            for _ in range(0,4):
-                self.__history.append(False)
-
-            # Build a delay line neural network.
-            self.network = FeedForwardNetwork()
-
-            inLayer = LinearLayer(8)
-            hiddenLayer = SigmoidLayer(1)
-            outputLayer = LinearLayer(4)
-
-            self.network.addInputModule(inLayer)
-            self.network.addModule(hiddenLayer)
-            self.network.addOutputModule(outputLayer)
-
-            self.in_to_hidden     = FullConnection(inLayer, hiddenLayer)
-            self.in_to_out        = FullConnection(inLayer, outputLayer)
-            self.hidden_to_out    = FullConnection(hiddenLayer, outputLayer)
-
-            self.network.addConnection(self.in_to_hidden)
-            self.network.addConnection(self.hidden_to_out)
-            self.network.addConnection(self.in_to_out)
-
-            self.network.sortModules()
-
-            self.__params_length = len(self.network.params)
-
-        elif (self.network_type == NetworkTypes.JEFF_M_DL_20_1_4_V1 or
-            self.network_type == NetworkTypes.JEFF_M_DL_18_1_4_V1 or
-            self.network_type == NetworkTypes.JEFF_M_DL_16_1_4_V1 or
-            self.network_type == NetworkTypes.JEFF_M_DL_14_1_4_V1 or
-            self.network_type == NetworkTypes.JEFF_M_DL_12_1_4_V1):
-
-            if (self.network_type == NetworkTypes.JEFF_M_DL_20_1_4_V1):
-                DL_LENGTH = 10
-            elif (self.network_type == NetworkTypes.JEFF_M_DL_18_1_4_V1):
-                DL_LENGTH = 9
-            elif (self.network_type == NetworkTypes.JEFF_M_DL_16_1_4_V1):
-                DL_LENGTH = 8
-            elif (self.network_type == NetworkTypes.JEFF_M_DL_14_1_4_V1):
-                DL_LENGTH = 7
-            elif (self.network_type == NetworkTypes.JEFF_M_DL_12_1_4_V1):
-                DL_LENGTH = 6
-
-            # Initalize the history with all trues
-            for _ in range(0, DL_LENGTH):
-                self.__history.append(False)
-
-            # Build a delay line neural network.
-            self.network = FeedForwardNetwork()
-
-            inLayer = LinearLayer(DL_LENGTH * 2)
-            hiddenLayer = SigmoidLayer(1)
-            outputLayer = LinearLayer(4)
-
-            self.network.addInputModule(inLayer)
-            self.network.addModule(hiddenLayer)
-            self.network.addOutputModule(outputLayer)
-
-            self.in_to_hidden     = FullConnection(inLayer, hiddenLayer)
-            self.in_to_out        = FullConnection(inLayer, outputLayer)
-            self.hidden_to_out    = FullConnection(hiddenLayer, outputLayer)
-
-            self.network.addConnection(self.in_to_hidden)
-            self.network.addConnection(self.hidden_to_out)
-            self.network.addConnection(self.in_to_out)
-
-            self.network.sortModules()
-
-            self.__params_length = len(self.network.params)
-
-        else:
-            # Build a neural network.
-            self.network = RecurrentNetwork()
-
-            inLayer = LinearLayer(2)
-            hiddenLayer = SigmoidLayer(5)
-            outputLayer = LinearLayer(4)
-
-            self.network.addInputModule(inLayer)
-            self.network.addModule(hiddenLayer)
-            self.network.addOutputModule(outputLayer)
-
-            self.in_to_hidden     = FullConnection(inLayer, hiddenLayer)
-            self.in_to_out        = FullConnection(inLayer, outputLayer)
-            self.hidden_to_out    = FullConnection(hiddenLayer, outputLayer)
-            self.hidden_to_hidden = FullConnection(hiddenLayer, hiddenLayer)
-
-            self.network.addConnection(self.in_to_hidden)
-            self.network.addConnection(self.hidden_to_out)
-            self.network.addConnection(self.in_to_out)
-            self.network.addRecurrentConnection(self.hidden_to_hidden)
-
-            self.network.sortModules()
-
-            self.__params_length = len(self.network.params)
-
+    def readNetworkInstant(self, pb_network):
+        self.network         = pb_network
+        self.__params_length = len(self.network.params)
 
     def determineMove(self, trailAhead):
         """ Returns the move the agent should make.
@@ -277,83 +35,139 @@ class network:
                 3 -- Move forward
 
         """
-        result = 0
-        history_numeric = []
 
-        if self.network_type == NetworkTypes.JEFFERSON:
-            if trailAhead == True:
-                result = self.network.activate([1, 0])
-            else:
-                result = self.network.activate([0, 1])
+        if trailAhead == True:
+            result = self.network.activate([1, 0])
+        else:
+            result = self.network.activate([0, 1])
 
-            return np.argmax(result)
-
-        elif (self.network_type == NetworkTypes.JEFF_M_DL_20_1_4_V1):
-            max_len = 10
-            offset  = False
-        elif (self.network_type == NetworkTypes.JEFF_M_DL_18_1_4_V1):
-            max_len = 9
-            offset  = False
-        elif (self.network_type == NetworkTypes.JEFF_M_DL_16_1_4_V1):
-            max_len = 8
-            offset  = False
-        elif (self.network_type == NetworkTypes.JEFF_M_DL_14_1_4_V1):
-            max_len = 7
-            offset  = False
-        elif (self.network_type == NetworkTypes.JEFF_M_DL_12_1_4_V1):
-            max_len = 6
-            offset  = False
-        elif (self.network_type == NetworkTypes.JEFF_M_DL_10_5_4_V1 or
-            self.network_type == NetworkTypes.JEFF_M_DL_10_1_4_V1):
-            max_len = 5
-            offset  = False
-        elif (self.network_type == NetworkTypes.JEFF_M_DL_4_1_4_V1):
-            max_len = 2
-            offset  = False
-        elif (self.network_type == NetworkTypes.JEFF_M_DL_6_1_4_V1):
-            max_len = 3
-            offset  = False
-        elif (self.network_type == NetworkTypes.JEFF_M_DL_8_1_4_V1):
-            max_len = 4
-            offset  = False
-        elif (self.network_type == NetworkTypes.JEFF_M_DL_10_1_3_V1):
-            max_len = 5
-            offset  = True
-
-        # Update the history
-        self.__history.insert(0, trailAhead)
-        del self.__history[max_len:]
-
-        for curr_h in self.__history:
-            if curr_h == True:
-                history_numeric.extend([1, 0])
-            else:
-                history_numeric.extend([0, 1])
-
-        result = self.network.activate(history_numeric)
-
-        if (offset):
+        if (len(result) == 3):
             return (np.argmax(result) + 1)
         else:
             return np.argmax(result)
 
-    def printWeights(self):
-        """ Prints the weights for the network.
-        """
-
-        print "Input to Hidden"
-        print self.in_to_hidden.params
-
-        print ""
-        print "Input to Output"
-        print self.in_to_out.params
-
-        print ""
-        print "Hidden to Output"
-        print self.hidden_to_out.params
-
+    def updateParameters(self, new_params):
+        self.network._setParameters(new_params)
+        self.network.sortModules()
 
     def getParamsLength(self):
         return self.__params_length
 
+    @staticmethod
+    def createJeffersonStyleNetwork(
+        in_count=2,
+        hidden_count=5,
+        output_count=4,
+        recurrent=True,
+        in_to_out_connect=True,
+        name=None):
+        """
+        Creates a Jefferson-esque neural network for trail problem.
 
+
+        Returns:
+            pybrain.network. The neural network.
+
+        """
+
+        if recurrent:
+            ret_net = RecurrentNetwork(name=name)
+        else:
+            ret_net = FeedForwardNetwork(name=name)
+
+        in_layer = LinearLayer(in_count, name="food")
+        hidden_layer = SigmoidLayer(hidden_count, name="hidden")
+        output_layer = LinearLayer(output_count, name="move")
+
+        ret_net.addInputModule(in_layer)
+        ret_net.addModule(hidden_layer)
+        ret_net.addOutputModule(output_layer)
+
+        in_to_hidden     = FullConnection(in_layer, hidden_layer)
+        hidden_to_out    = FullConnection(hidden_layer, output_layer)
+
+        ret_net.addConnection(in_to_hidden)
+        ret_net.addConnection(hidden_to_out)
+
+        if in_to_out_connect:
+            in_to_out        = FullConnection(in_layer, output_layer)
+            ret_net.addConnection(in_to_out)
+
+        if recurrent:
+            hidden_to_hidden = FullConnection(hidden_layer, hidden_layer)
+            ret_net.addRecurrentConnection(hidden_to_hidden)
+
+        ret_net.sortModules()
+
+        return ret_net
+
+
+    @staticmethod
+    def createJeffersonMDLNetwork(
+        mdl_length=2,
+        hidden_count=5,
+        output_count=4,
+        in_to_out_connect=True,
+        name=None):
+
+        ret_net = RecurrentNetwork(name=name)
+
+        # Add some components of the neural network.
+        hidden_layer = SigmoidLayer(hidden_count, name="hidden")
+        output_layer = LinearLayer(output_count, name="move")
+
+        ret_net.addModule(hidden_layer)
+        ret_net.addOutputModule(output_layer)
+
+        ret_net.addConnection(
+            FullConnection(
+                hidden_layer,
+                output_layer,
+                name="Hidden to Move Layer"))
+
+        mdl_prev = ()
+
+        for idx in range(0, mdl_length):
+            # Create the layers
+            food_layer = LinearLayer(2, name="Food {0}".format(idx))
+            mdl_layer = LinearLayer(2, name="MDL Layer {0}".format(idx))
+
+            # Add to network
+            ret_net.addModule(food_layer)
+            if idx == 0:
+                ret_net.addInputModule(mdl_layer)
+            else:
+                ret_net.addModule(mdl_layer)
+                # Add delay line connection.
+                ret_net.addRecurrentConnection(
+                    FullConnection(
+                        mdl_prev,
+                        mdl_layer,
+                        name="Recurrent DL {0} to DL {1}".format(idx - 1, idx)))
+
+            # Add connections for
+            # - Delay line to NN.
+            # - NN to Hidden.
+            # - NN to Out (if desired).
+            ret_net.addConnection(
+                FullConnection(
+                    mdl_layer,
+                    food_layer,
+                    name="DL {0} to Food {0}".format(idx)))
+            ret_net.addConnection(
+                FullConnection(
+                    food_layer,
+                    hidden_layer,
+                    name="Food {0} to Hidden".format(idx)))
+            if in_to_out_connect:
+                ret_net.addConnection(
+                    FullConnection(
+                        food_layer,
+                        output_layer,
+                        name="Food {0} to Output".format(idx)))
+
+            mdl_prev = mdl_layer
+
+        ret_net.sortModules()
+
+        return ret_net

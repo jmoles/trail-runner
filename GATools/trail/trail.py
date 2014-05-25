@@ -1,6 +1,8 @@
+import logging
 import numpy as np
+import sys
 
-from DBUtils import DBUtils
+from ..DBUtils import DBUtils
 
 class GridVals:
     EMPTY  = 0 # Nothing in this square
@@ -38,6 +40,12 @@ class trail:
         self.__food_consumed = 0
         self.__num_moves     = 0
 
+        self.__moves            = {}
+        self.__moves["left"]    = 0
+        self.__moves["right"]   = 0
+        self.__moves["forward"] = 0
+        self.__moves["none"]    = 0
+
 
     def readTrail(self, trail_num):
         pgdb = DBUtils()
@@ -52,9 +60,7 @@ class trail:
         self.__maxX            = self.__maxX - 1
         self.__maxY            = self.__maxY - 1
 
-        currPos = np.where(self.__data_matrix == self.__curr_agent)
-        self.__currY = currPos[0].item(0)
-        self.__currX = currPos[1].item(0)
+        self.__updateAgentPos()
 
         # Determine the ant's current type and position
         self.__updateAgentRotType()
@@ -71,9 +77,7 @@ class trail:
         self.__maxX            = self.__maxX - 1
         self.__maxY            = self.__maxY - 1
 
-        currPos = np.where(self.__data_matrix == self.__curr_agent)
-        self.__currY = currPos[0].item(0)
-        self.__currX = currPos[1].item(0)
+        self.__updateAgentPos()
 
         # Determine the ant's current type and position
         self.__updateAgentRotType()
@@ -91,14 +95,14 @@ class trail:
         elif self.__rotation == 270:
             self.__moveLeft()
 
-        self.__num_moves = self.__num_moves + 1
+        self.__moves["forward"] += 1
 
     def turnLeft(self):
         """ Rotates the agent 90 degrees left.
         """
         self.__rotateAgent(self.__rotation - self.ROTATE_ANGLE)
 
-        self.__num_moves = self.__num_moves + 1
+        self.__moves["left"] += 1
 
 
     def turnRight(self):
@@ -106,12 +110,12 @@ class trail:
         """
         self.__rotateAgent(self.__rotation + self.ROTATE_ANGLE)
 
-        self.__num_moves = self.__num_moves + 1
+        self.__moves["right"] += 1
 
     def noMove(self):
         """ Does not move the agent. Just increments the number of moves taken.
         """
-        self.__num_moves = self.__num_moves + 1
+        self.__moves["none"] += 1
 
     def getFoodConsumed(self):
         """ Returns the amount of food consumed.
@@ -158,7 +162,16 @@ class trail:
         Returns:
             int. Number of moves that agent has made.
         """
-        return self.__num_moves
+        return sum(self.__moves.values())
+
+    def getMovesStats(self):
+        """ Returns a dictionary with a count of types of moves made.
+
+        Returns:
+            dict. With keys "left", "right", "forward", "none" with move count.
+        """
+
+        return self.__moves
 
     def getFoodStats(self):
         """ Returns the current statistics on the agent's food.
@@ -272,6 +285,29 @@ class trail:
 
         self.__rotation = newRot
         self.__updateAgentRotType()
+
+
+    def __updateAgentPos(self):
+
+        # Get the count of types of things in the maze.
+        elem_count = np.bincount(np.ravel(self.__data_matrix))
+
+        if np.sum(elem_count[2:6] > 1):
+            # Big error. We have two agents in maze.
+            logging.error("There are two agents in the maze!")
+            sys.exit(1)
+
+        if (elem_count[GridVals.ANT0] == 1):
+            currPos = np.where(self.__data_matrix == GridVals.ANT0)
+        elif(elem_count[GridVals.ANT90] == 1):
+            currPos = np.where(self.__data_matrix == GridVals.ANT90)
+        elif(elem_count[GridVals.ANT180] == 1):
+            currPos = np.where(self.__data_matrix == GridVals.ANT180)
+        elif(elem_count[GridVals.ANT270] == 1):
+            currPos = np.where(self.__data_matrix == GridVals.ANT270)
+
+        self.__currY = currPos[0].item(0)
+        self.__currX = currPos[1].item(0)
 
 
     def __updateAgentRotType(self):

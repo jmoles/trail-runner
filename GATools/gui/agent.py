@@ -101,6 +101,7 @@ class agent(QtCore.QThread):
         cmd_list.extend(["-q"])
 
         cmd_list.extend(["-z"])
+        logging.debug("Run command is {0}".format(cmd_list))
         self.proc = subprocess.Popen(cmd_list)
 
         # Set up ZMQ push/pull
