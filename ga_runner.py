@@ -5,13 +5,12 @@ import json
 import logging
 import numpy as np
 import os
-import os.path
 import pickle
 import random
 import scoop
 import socket
-import string
 import sys
+import tempfile
 import textwrap
 import time
 import zmq
@@ -27,7 +26,7 @@ except ImportError:
         "Try 'pip install progressbar2'")
 
 # Configure DEAP
-creator.create("FitnessMulti", base.Fitness, weights=(1,-1))
+creator.create("FitnessMulti", base.Fitness, weights=(1.0,-0.1))
 creator.create("Individual", list, fitness=creator.FitnessMulti)
 
 # Some constants
@@ -42,9 +41,9 @@ WEIGHT_MIN_DEF  = -5.0
 WEIGHT_MAX_DEF  = 5.0
 
 def __singleMazeTask(individual, moves, trail_matrix, trail_name, trail_rot,
-    pb_network, detailed_stats=False):
+    pb_filename, detailed_stats=False):
     an = AgentNetwork()
-    an.readNetworkInstant(pb_network)
+    an.readNetworkFromFile(pb_filename)
     at = AgentTrail()
     at.readTrailInstant(trail_matrix, trail_name, trail_rot)
 
@@ -156,7 +155,7 @@ def main():
     at.readTrail(args.trail)
     trail_name = at.getName()
 
-    if not args.quiet:
+    if not args.quiet and not args.debug:
         try:
             widgets = ['Processed: ', progressbar.Percentage(), ' ',
                 progressbar.Bar(marker=progressbar.RotatingMarker()),
@@ -170,15 +169,18 @@ def main():
     # Query the database to get the network information.
     pybrain_network = pgdb.getNetworkByID(args.network)
 
+    temp_f_h, temp_f_network = tempfile.mkstemp()
+    os.close(temp_f_h)
+
+    with open(temp_f_network, "w") as f:
+        pickle.dump(pybrain_network, f)
+
     network_params_len = len(pybrain_network.params)
 
     for curr_repeat in range(0, args.repeat):
         repeat_start_time = datetime.datetime.now()
 
-
-        if not args.disable_db:
-            # Create a tuple to store stats
-            gens_stat_list = []
+        gens_stat_list = []
 
         # Prepare the array for storing hall of fame.
         hof_array = np.zeros((args.generations,
@@ -206,7 +208,7 @@ def main():
 
         toolbox.register("evaluate", __singleMazeTask, moves=args.moves,
             trail_matrix=data_matrix, trail_name=db_trail_name,
-            trail_rot=init_rot, pb_network=pybrain_network)
+            trail_rot=init_rot, pb_filename=temp_f_network)
         toolbox.register("mate", tools.cxTwoPoint)
         toolbox.register("mutate", tools.mutFlipBit, indpb=P_BIT_MUTATE)
         toolbox.register("select", tools.selTournament,
@@ -278,34 +280,42 @@ def main():
                         "done"               : done,
                         "record"             : record})
 
-            if not args.disable_db:
-                # Record the statistics for this run.
-                _, _, this_move_stats = (
-                __singleMazeTask(tools.selBest(
-                population, k=1)[0],args.moves,
-                data_matrix, db_trail_name,
-                init_rot, pybrain_network, True))
+            # Record the statistics for this run.
+            elite_food, elite_moves, this_move_stats = (
+            __singleMazeTask(
+                individual=tools.selBest(population, k=1)[0],
+                moves=args.moves,
+                trail_matrix=data_matrix,
+                trail_name=temp_f_network,
+                trail_rot=init_rot,
+                pb_filename=temp_f_network,
+                detailed_stats=True))
 
-                record_info                  = {}
-                record_info["gen"]           = gen - 1
-                record_info["runtime"]       = (datetime.datetime.now() -
-                        gen_start_time)
-                record_info["food_max"]      = record["food"]["max"]
-                record_info["food_min"]      = record["food"]["min"]
-                record_info["food_avg"]      = record["food"]["avg"]
-                record_info["food_std"]      = record["food"]["std"]
-                record_info["moves_max"]     = record["moves"]["max"]
-                record_info["moves_min"]     = record["moves"]["min"]
-                record_info["moves_avg"]     = record["moves"]["avg"]
-                record_info["moves_std"]     = record["moves"]["std"]
-                record_info["moves_left"]    = this_move_stats["left"]
-                record_info["moves_right"]   = this_move_stats["right"]
-                record_info["moves_forward"] = this_move_stats["forward"]
-                record_info["moves_none"]    = this_move_stats["none"]
-                record_info["elite"]         = np.array(
-                        tools.selBest(population, k=1)[0]).tolist()
+            logging.debug("Elite Gen {0} - Food: {1} Moves: {2}".format(
+                gen,
+                elite_food,
+                elite_moves))
 
-                gens_stat_list.append(record_info)
+            record_info                  = {}
+            record_info["gen"]           = gen - 1
+            record_info["runtime"]       = (datetime.datetime.now() -
+                    gen_start_time)
+            record_info["food_max"]      = record["food"]["max"]
+            record_info["food_min"]      = record["food"]["min"]
+            record_info["food_avg"]      = record["food"]["avg"]
+            record_info["food_std"]      = record["food"]["std"]
+            record_info["moves_max"]     = record["moves"]["max"]
+            record_info["moves_min"]     = record["moves"]["min"]
+            record_info["moves_avg"]     = record["moves"]["avg"]
+            record_info["moves_std"]     = record["moves"]["std"]
+            record_info["moves_left"]    = this_move_stats["left"]
+            record_info["moves_right"]   = this_move_stats["right"]
+            record_info["moves_forward"] = this_move_stats["forward"]
+            record_info["moves_none"]    = this_move_stats["none"]
+            record_info["elite"]         = np.array(
+                    tools.selBest(population, k=1)[0]).tolist()
+
+            gens_stat_list.append(record_info)
 
 
 
@@ -316,9 +326,6 @@ def main():
                 bar_done_val = ((float(percent_done) / (100.0 * args.repeat)) +
                     (float(curr_repeat)) / (float(args.repeat)))
                 pbar.update(bar_done_val * 100)
-            else:
-                logging.debug("on generation %d / %d of repeat %d / %d" % (gen,
-                        args.generations, curr_repeat + 1, args.repeat))
 
         # Record the statistics on this run.
         if not args.disable_db:
@@ -344,14 +351,21 @@ def main():
 
             pgdb.recordRun(run_info, gens_stat_list)
 
-
     # Calculate and display the total runtime
     if pbar:
         pbar.finish()
     total_time_s = time.time() - run_date
 
-    logging.info("Run completed in " +
-        time.strftime('%H:%M:%S', time.gmtime(total_time_s)) + ".")
+    # Delete the temporary file
+    os.remove(temp_f_network)
+
+    logging.info("Run T{0} G{1} P{2} N{3} M{4} completed in {5}".format(
+        args.trail,
+        args.generations,
+        args.population,
+        args.network,
+        args.moves,
+        time.strftime('%H:%M:%S', time.gmtime(total_time_s))))
 
 
 if __name__ == "__main__":

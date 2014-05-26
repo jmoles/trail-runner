@@ -29,6 +29,7 @@ AGENT_VAL     = 2
 AGENT_START_X = 4
 AGENT_START_Y = 4
 
+# TODO: Add a test that checks if maze has been modified by the class after passed in to instant read.
 
 class TestTrailFunctions(unittest.TestCase):
 

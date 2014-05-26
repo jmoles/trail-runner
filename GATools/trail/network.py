@@ -4,6 +4,11 @@ from pybrain.structure.networks.feedforward import FeedForwardNetworkComponent
 
 import numpy as np
 
+try:
+    import cPickle as pickle
+except:
+    import pickle
+
 from ..DBUtils import DBUtils
 
 class network:
@@ -18,6 +23,11 @@ class network:
 
     def readNetworkInstant(self, pb_network):
         self.network         = pb_network
+        self.__params_length = len(self.network.params)
+
+    def readNetworkFromFile(self, filename):
+        with open(filename, 'r') as f:
+            self.network         = pickle.load(f)
         self.__params_length = len(self.network.params)
 
     def determineMove(self, trailAhead):
@@ -48,7 +58,6 @@ class network:
 
     def updateParameters(self, new_params):
         self.network._setParameters(new_params)
-        self.network.sortModules()
 
     def getParamsLength(self):
         return self.__params_length

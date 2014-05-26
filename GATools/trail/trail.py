@@ -38,7 +38,6 @@ class trail:
         self.__currX         = 0
         self.__currY         = 0
         self.__food_consumed = 0
-        self.__num_moves     = 0
 
         self.__moves            = {}
         self.__moves["left"]    = 0
@@ -54,7 +53,12 @@ class trail:
         self.__trail_name,
         self.__rotation) = pgdb.getTrailData(trail_num)
 
-        self.__food_total  = np.where(self.__data_matrix == GridVals.FOOD)[0].size
+        # Get the count of types of things in the maze.
+        elem_count = np.bincount(np.ravel(self.__data_matrix))
+        self.__food_total  = elem_count[GridVals.FOOD]
+
+        if self.__food_total < 1:
+            print "WARNING: This trail has no food in it!"
 
         self.__maxY, self.__maxX = self.__data_matrix.shape
         self.__maxX            = self.__maxX - 1
@@ -67,11 +71,16 @@ class trail:
 
 
     def readTrailInstant(self, trail_m, trail_s, rot_i):
-        self.__data_matrix = trail_m
+        self.__data_matrix = np.matrix(trail_m)
         self.__trail_name  = trail_s
         self.__rotation    = rot_i
 
-        self.__food_total  = np.where(self.__data_matrix == GridVals.FOOD)[0].size
+        # Get the count of types of things in the maze.
+        elem_count = np.bincount(np.ravel(self.__data_matrix))
+        self.__food_total  = elem_count[GridVals.FOOD]
+
+        if self.__food_total < 1:
+            print "WARNING: This trail has no food in it!"
 
         self.__maxY, self.__maxX = self.__data_matrix.shape
         self.__maxX            = self.__maxX - 1
