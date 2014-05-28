@@ -12,7 +12,14 @@ class chart:
     def __init__(self):
         self.__pgdb = DBUtils()
 
-    def lineChart(self, run_ids, ext="png", elem="food", stat="max"):
+    def lineChart(self, run_ids, ext="png", stat_group="food",
+        stat=None):
+
+        if stat_group == "moves_stats" and stat == None:
+            stat=["left", "right", "forward", "none"]
+        elif stat == None:
+            stat=["min", "max", "avg"]
+
         # Generate the figure and axes common to all of these.
         fig = pyplot.Figure()
         axis = fig.add_subplot(1,1,1)
@@ -25,6 +32,9 @@ class chart:
             run_info[run_ids[0]]["trails_id"])
         max_food = np.bincount(np.array(trail_grid.flatten())[0])[1]
 
+        # Moves are looked at through iterations
+        max_moves = 0
+
         # Take each run and now fetch data for each.
         gens_data = self.__pgdb.fetchRunGenerations(run_ids)
 
@@ -36,13 +46,24 @@ class chart:
         trail_name = self.__pgdb.getTrails()[run_info[run_ids[0]]["trails_id"]]
 
         # Manipulate the data into preparation for a plot.
-        plot_data = np.zeros((len(gens_data), len(run_ids)))
+        plot_data = np.zeros((
+            len(run_ids) * len(stat),
+            len(gens_data),
+            ))
 
         # TODO: Fix this to handle more than one run_ids. Probably need
         # a view in the DB to not make this nasty.
-        for curr_gen in range(0, run_info[run_ids[0]]["generations"]):
-            plot_data[curr_gen] = (
-                gens_data[curr_gen][elem][stat])
+        for e_idx in range(0, len(stat)):
+            for g_idx in range(0, run_info[run_ids[0]]["generations"]):
+                c_stat = stat[e_idx]
+
+                if stat_group == "moves_stats":
+                    c_key = "moves"
+                else:
+                    c_key = stat_group
+
+                plot_data[e_idx][g_idx] = (
+                    gens_data[g_idx][c_key][c_stat])
 
         x = np.linspace(
             0,
@@ -57,14 +78,37 @@ class chart:
                 run_info[run_ids[0]]["population"]))
 
         # TODO: May need to transpose when having more than one run_ids.
-        axis.plot(x, plot_data, '-')
-        axis.plot(x, np.repeat(
-            np.array(max_food),
-            run_info[run_ids[0]]["generations"]), 'r--')
-        axis.axis((0, run_info[run_ids[0]]["generations"], 0, max_food + 5))
-        axis.set_xlabel("Generations")
-        axis.set_ylabel("Food Consumed")
+        for c_data, c_legend in zip(plot_data, stat):
+            axis.plot(x, c_data, '-', label=c_legend.title())
+
+        # Determine the maximum type to show.
+        if stat_group == "food":
+            axis.plot(x, np.repeat(
+                np.array(max_food),
+                run_info[run_ids[0]]["generations"]), 'r--')
+            axis.axis((0, run_info[run_ids[0]]["generations"],
+                0, max_food + 5))
+            axis.set_ylabel("Food Consumed")
+            axis.set_xlabel("Generations")
+            axis.legend(loc="best")
+        elif stat_group == "moves":
+            axis.plot(x, np.repeat(
+                np.array(run_info[run_ids[0]]["moves_limit"]),
+                run_info[run_ids[0]]["generations"]), 'r--')
+            axis.axis((0, run_info[run_ids[0]]["generations"],
+                0, run_info[run_ids[0]]["moves_limit"] + 5))
+            axis.set_ylabel("Moves Taken")
+            axis.set_xlabel("Generations")
+            axis.legend(loc="lower left")
+        elif stat_group == "moves_stats":
+            axis.axis((0, run_info[run_ids[0]]["generations"],
+                0, run_info[run_ids[0]]["moves_limit"] + 5))
+            axis.set_ylabel("Moves Taken")
+            axis.set_xlabel("Generations")
+            axis.legend(loc="upper left", ncol=2)
+
         axis.set_title(plot_title)
+
 
         fig.set_facecolor('w')
 

@@ -210,37 +210,44 @@ def plot_old(plot_type, network, trail, gen, pop):
 def plot_by_run_id(run_id):
     start = datetime.datetime.now()
 
-    ch = chart()
-    output, plot_title = plot_img(run_id, "png", inline=True)
+    images_l  = []
 
-    finish_time_s = str((datetime.datetime.now() - start).total_seconds())
+    for c_elem in ("food", "moves", "moves_stats"):
+        print c_elem
 
-    pdf_url = url_for(
-        'plot_img', run_id=run_id, ext="pdf")
+        ch = chart()
+        output, _ = plot_img(
+            run_id=run_id, ext="png", stat_group=c_elem, inline=True)
 
-    eps_url = url_for(
-        'plot_img', run_id=run_id, ext="eps")
+        finish_time_s = str((datetime.datetime.now() - start).total_seconds())
 
-    jpg_url = url_for(
-        'plot_img', run_id=run_id, ext="jpg")
+        pdf_url = url_for(
+            'plot_img', run_id=run_id, ext="pdf", stat_group=c_elem)
 
-    images_l = []
-    image_d  = {}
-    image_d["data"] = output
-    image_d["pdf"]  = pdf_url
-    image_d["eps"]  = eps_url
-    image_d["jpg"]  = jpg_url
-    images_l.append(image_d)
+        eps_url = url_for(
+            'plot_img', run_id=run_id, ext="eps", stat_group=c_elem)
+
+        jpg_url = url_for(
+            'plot_img', run_id=run_id, ext="jpg", stat_group=c_elem)
+
+        image_d  = {}
+        image_d["data"] = output
+        image_d["pdf"]  = pdf_url
+        image_d["eps"]  = eps_url
+        image_d["jpg"]  = jpg_url
+        images_l.append(image_d)
 
     return render_template(
-        "plot_results.html", title=plot_title, images_l=images_l,
+        "plot_results.html",
+        title="Plots for Run {0}".format(run_id).title(),
+        images_l=images_l,
         time_sec=finish_time_s)
 
-@app.route("/plot/img/<int:run_id>/<ext>")
-def plot_img(run_id, ext="png", inline=False):
+@app.route("/plot/img/<int:run_id>/<ext>/<stat_group>")
+def plot_img(run_id, ext="png", stat_group="food", inline=False):
     ch = chart()
 
-    output, plot_title = ch.lineChart([run_id], ext)
+    output, plot_title = ch.lineChart([run_id], ext, stat_group=stat_group)
 
     if (inline):
         return base64.b64encode(output.getvalue()), plot_title
@@ -250,6 +257,19 @@ def plot_img(run_id, ext="png", inline=False):
         response.headers['Content-Disposition'] = (
             'filename=plot.{0}'.format(ext))
         return response
+
+@app.route("/plot_similar/img/<int:run_id>/<ext>/<stat_group>/<mean>")
+def plot_similar_img(run_id, ext="png", stat_group="food",
+    mean=True, inline=False):
+    """ Plots an image of all run_ids that match run_id.
+
+    The returned image will be of type ext.
+    Valid stat_group for plotting are:
+       food, moves, moves_stats
+    If mean is True, will take mean of values rather than plot all.
+
+    """
+    pass
 
 @app.route("/show.png")
 def show_plot():

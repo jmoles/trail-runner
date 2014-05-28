@@ -285,6 +285,58 @@ class DBUtils:
 
         return ret_val
 
+    def getSameRunIDs(self, run_id):
+        """ Takes a single run_id and returns a list of run_ids that
+        were run with the same parameters.
+
+        Returns:
+           list. A list of run_id (as int) that have same parameters as
+               the passed in run_id.
+
+        """
+        conn = psycopg2.connect(self.__dsn)
+        curs = conn.cursor()
+
+        # First, fetch the parameters that this run went with.
+        this_run_d = self.fetchRunInfo([run_id])[run_id]
+
+        # Now, excute a query that has that matches this run info.
+        curs.execute("""SELECT id
+            FROM run
+            WHERE trails_id = %s AND
+            networks_id = %s AND
+            mutate_id = %s AND
+            generations = %s AND
+            population = %s AND
+            moves_limit = %s AND
+            elite_count = %s AND
+            round(p_mutate::numeric, 4) = %s AND
+            round(p_crossover::numeric, 4) = %s AND
+            weight_min = %s AND
+            weight_max = %s AND
+            debug = %s;""", (
+            this_run_d["trails_id"],
+            this_run_d["networks_id"],
+            this_run_d["mutate_id"],
+            this_run_d["generations"],
+            this_run_d["population"],
+            this_run_d["moves_limit"],
+            this_run_d["elite_count"],
+            round(this_run_d["p_mutate"], 4),
+            round(this_run_d["p_crossover"], 4),
+            this_run_d["weight_min"],
+            this_run_d["weight_max"],
+            this_run_d["debug"]) )
+
+        ret_val = []
+
+        for record in curs:
+            ret_val.append(record[0])
+
+        curs.close()
+        conn.close()
+
+        return ret_val
 
     def getMaxFoodAtGeneration(self, run_ids, generation):
         conn = psycopg2.connect(self.__dsn)
