@@ -20,8 +20,12 @@ class NetworkNotFound(Exception):
 
 
 class DBUtils:
-    def __init__(self, host="db.cecs.pdx.edu", db="jmoles",
-        user="jmoles", password=os.environ["PSYCOPG2_DB_PASS"]):
+    def __init__(
+        self,
+        host=os.environ["PSYCOPG2_DB_HOST"],
+        db=os.environ["PSYCOPG2_DB_DB"],
+        user=os.environ["PSYCOPG2_DB_USER"],
+        password=os.environ["PSYCOPG2_DB_PASS"]):
 
         self.__dsn = "host={0} dbname={1} user={2} password={3}".format(
             host, db, user, password)
@@ -208,46 +212,79 @@ class DBUtils:
             FROM generations
             WHERE run_id IN %s;""", (tuple(run_id), ) )
 
-        ret_val = []
+        ret_val = {}
         curr_dict = {}
-
-        prev_gen_id = 0
 
         for record in curs:
 
-            if (record[0] < prev_gen_id):
-                ret_val.append(curr_dict)
-                curr_dict         = {}
+            food_d             = {}
+            food_d["min"]      = record[2]
+            food_d["max"]      = record[3]
+            food_d["avg"]      = record[4]
+            food_d["std"]      = record[5]
 
-            # TODO: Alignment here
-            food_d = {}
-            food_d["min"] = record[2]
-            food_d["max"] = record[3]
-            food_d["avg"] = record[4]
-            food_d["std"] = record[5]
+            move_d             = {}
+            move_d["min"]      = record[6]
+            move_d["max"]      = record[7]
+            move_d["avg"]      = record[8]
+            move_d["std"]      = record[9]
+            move_d["left"]     = record[10]
+            move_d["right"]    = record[11]
+            move_d["forward"]  = record[12]
+            move_d["none"]     = record[13]
 
-            move_d = {}
-            move_d["min"] = record[6]
-            move_d["max"] = record[7]
-            move_d["avg"] = record[8]
-            move_d["std"] = record[9]
-            move_d["left"] = record[10]
-            move_d["right"] = record[11]
-            move_d["forward"] = record[12]
-            move_d["none"] = record[13]
+            data_d             = {}
+            data_d["food"]     = food_d
+            data_d["moves"]    = move_d
 
-            data_d = {}
-            data_d["food"] = food_d
-            data_d["moves"] = move_d
-
-            curr_dict[record[0]] = data_d
-
-            prev_gen_id = record[0]
+            ret_val[record[0]] = data_d
 
         curs.close()
         conn.close()
 
         return ret_val
+
+    def fetchRunInfo(self, run_id):
+        conn = psycopg2.connect(self.__dsn)
+        curs = conn.cursor()
+
+        curs.execute("""SELECT id, trails_id, networks_id, mutate_id,
+            host_configs_id, run_date, runtime, hostname, generations,
+            population, moves_limit, elite_count, p_mutate, p_crossover,
+            weight_min, weight_max, debug
+            FROM run
+            WHERE id IN %s;""", (tuple(run_id), ) )
+
+        ret_val = {}
+
+        for record in curs:
+            curr_dict                    = {}
+
+            this_run_id                  = record[0]
+            curr_dict["trails_id"]       = record[1]
+            curr_dict["networks_id"]     = record[2]
+            curr_dict["mutate_id"]       = record[3]
+            curr_dict["host_configs_id"] = record[4]
+            curr_dict["run_date"]        = record[5]
+            curr_dict["runtime"]         = record[6]
+            curr_dict["hostname"]        = record[7]
+            curr_dict["generations"]     = record[8]
+            curr_dict["population"]      = record[9]
+            curr_dict["moves_limit"]     = record[10]
+            curr_dict["elite_count"]     = record[11]
+            curr_dict["p_mutate"]        = record[12]
+            curr_dict["p_crossover"]     = record[13]
+            curr_dict["weight_min"]      = record[14]
+            curr_dict["weight_max"]      = record[15]
+            curr_dict["debug"]           = record[16]
+
+            ret_val[this_run_id]       = curr_dict
+
+        curs.close()
+        conn.close()
+
+        return ret_val
+
 
     def getMaxFoodAtGeneration(self, run_ids, generation):
         conn = psycopg2.connect(self.__dsn)

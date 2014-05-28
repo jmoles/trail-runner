@@ -7,20 +7,35 @@
 		<meta charset = "utf-8">
 		<title>{{ title }}</title>
 
+		<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+		<script>
+		if (!window.jQuery) {
+		    document.write('<script src="{{ url_for('static', filename='jquery-2.1.1.min.css') }}"><\/script>');
+		}
+		</script>
+
 	</head>
 
 	<body>
 		<h1>{{ title }}</h1>
 
-		<div id="image">
-			<img src="data:image/png;base64,{{ image_data }}" />
+		{% for idx in range(images_l|count) %}
+
+		<div class="image_box" id="box{{idx}}">
+			<div id="image{{idx}}">
+				<img src="data:image/png;base64,{{ images_l[idx]["data"] }}" />
+			</div>
+
+			<div id="urls{{idx}}">
+				<a href="{{ images_l[idx]["pdf"] }}">Download PDF</a> |
+				<a href="{{ images_l[idx]["eps"] }}">Download EPS</a> |
+				<a href="{{ images_l[idx]["jpg"] }}">Download JPG</a>
+			</div>
 		</div>
 
-		<div id="urls">
-			<a href="{{ pdf_url }}">Download PDF</a> |
-			<a href="{{ eps_url }}">Download EPS</a> |
-			<a href="{{ jpg_url }}">Download JPG</a>
-		</div>
+		{% endfor %}
 
 		<div id="footer">
 			Generated in {{ time_sec }} seconds.

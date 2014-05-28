@@ -5,18 +5,20 @@ import base64
 from flask import Flask, render_template, request, make_response, url_for
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_agg as pltagg
+import mimetypes
 import numpy as np
 
 from flask_wtf import Form
 import wtforms
 
 from GATools.DBUtils import DBUtils
+from GATools.plot.chart import chart
 
 DEBUG = True
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 WTF_I18N_ENABLED = False
 
-app = Flask(__name__, static_folder="static")
+app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
 pgdb = DBUtils()
@@ -56,9 +58,9 @@ def index():
         get_networks=get_networks)
 
 @app.route(
-    "/plot_img/<int:plot_type>/<int:network>/" +
+    "/plot_img_old/<int:plot_type>/<int:network>/" +
     "<int:trail>/<int:gen>/<int:pop>/<ext>")
-def plot_img(plot_type, network, trail, gen, pop, ext, inline=False):
+def plot_img_old(plot_type, network=0, trail=0, gen=0, pop=0, ext="jpg", inline=False):
     """ Generates an image of specified by ext.
 
     Keyword arguments:
@@ -141,7 +143,6 @@ def plot_img(plot_type, network, trail, gen, pop, ext, inline=False):
         axis.set_ylabel("Food Consumed")
         axis.set_title(plot_title)
 
-
     canvas = pltagg.FigureCanvasAgg(fig)
     output = StringIO.StringIO()
 
@@ -178,8 +179,8 @@ def plot_img(plot_type, network, trail, gen, pop, ext, inline=False):
 
 
 @app.route(
-    "/plot/<int:plot_type>/<int:network>/<int:trail>/<int:gen>/<int:pop>")
-def plot(plot_type, network, trail, gen, pop):
+    "/plot_old/<int:plot_type>/<int:network>/<int:trail>/<int:gen>/<int:pop>")
+def plot_old(plot_type, network, trail, gen, pop):
     start = datetime.datetime.now()
 
     output, plot_title = plot_img(
@@ -204,6 +205,51 @@ def plot(plot_type, network, trail, gen, pop):
         time_sec=finish_time_s, pdf_url=pdf_url, eps_url=eps_url,
         jpg_url=jpg_url)
 
+@app.route('/plot/', defaults={'run_id': 1})
+@app.route('/plot/run_id/<int:run_id>')
+def plot_by_run_id(run_id):
+    start = datetime.datetime.now()
+
+    ch = chart()
+    output, plot_title = plot_img(run_id, "png", inline=True)
+
+    finish_time_s = str((datetime.datetime.now() - start).total_seconds())
+
+    pdf_url = url_for(
+        'plot_img', run_id=run_id, ext="pdf")
+
+    eps_url = url_for(
+        'plot_img', run_id=run_id, ext="eps")
+
+    jpg_url = url_for(
+        'plot_img', run_id=run_id, ext="jpg")
+
+    images_l = []
+    image_d  = {}
+    image_d["data"] = output
+    image_d["pdf"]  = pdf_url
+    image_d["eps"]  = eps_url
+    image_d["jpg"]  = jpg_url
+    images_l.append(image_d)
+
+    return render_template(
+        "plot_results.html", title=plot_title, images_l=images_l,
+        time_sec=finish_time_s)
+
+@app.route("/plot/img/<int:run_id>/<ext>")
+def plot_img(run_id, ext="png", inline=False):
+    ch = chart()
+
+    output, plot_title = ch.lineChart([run_id], ext)
+
+    if (inline):
+        return base64.b64encode(output.getvalue()), plot_title
+    else:
+        response = make_response(output.getvalue())
+        response.mimetype = mimetypes.guess_type("plot.{0}".format(ext))[0]
+        response.headers['Content-Disposition'] = (
+            'filename=plot.{0}'.format(ext))
+        return response
 
 @app.route("/show.png")
 def show_plot():
