@@ -57,178 +57,31 @@ def index():
         get_trails=get_trails,
         get_networks=get_networks)
 
-@app.route(
-    "/plot_img_old/<int:plot_type>/<int:network>/" +
-    "<int:trail>/<int:gen>/<int:pop>/<ext>")
-def plot_img_old(plot_type, network=0, trail=0, gen=0, pop=0, ext="jpg", inline=False):
-    """ Generates an image of specified by ext.
-
-    Keyword arguments:
-    plot_type -- The type of plot to generate with this enumeration:
-        0 : Plot all matching runs with generations on x-axis.
-        1 : Plot all matching runs with max atfinal generation plotted
-            against networks sweeping from 2 up to 10. Network is ignored
-            for this search.
-
-    """
-
-    # Generate the figure and axes common to all of these.
-    fig = plt.Figure()
-    axis = fig.add_subplot(1,1,1)
-
-    # Determine the maximum amount of food
-    traiL_grid, _, _ = pgdb.getTrailData(trail)
-    max_food = np.bincount(np.array(traiL_grid.flatten())[0])[1]
-
-    if plot_type == 0:
-        # Fetch all of the run ids that match the criteria.
-        ids_l = pgdb.findRuns(network, trail, gen, pop)
-
-        # Take each run and now fetch data for each.
-        gens_data = pgdb.fetchRunGenerations(ids_l)
-
-        # Find the network name.
-        net_name = pgdb.getNetworks()[network]
-
-        # Find the trail name.
-        trail_name = pgdb.getTrails()[trail]
-
-        # Manipulate thie data into preperation for a plot.
-        plot_data = np.zeros((len(gens_data), gen))
-
-        item_idx = 0
-        for curr_gdata in gens_data:
-            for curr_gen in range(0, gen):
-                print plot_data
-                plot_data[item_idx][curr_gen] = (
-                    curr_gdata[curr_gen]["food"]["max"])
-            item_idx = item_idx + 1
-
-        x = np.linspace(0, gen - 1, num=gen)
-
-        plot_title = (
-            "{0} - {1} g{2}/p{3}".format(
-                net_name, trail_name, gen, pop))
-
-        axis.plot(x, np.transpose(plot_data), '-')
-        axis.plot(x, np.repeat(np.array(max_food), gen), 'r--')
-        axis.axis((0, gen, 0, max_food + 5))
-        axis.set_xlabel("Generations")
-        axis.set_ylabel("Food Consumed")
-        axis.set_title(plot_title)
-
-    elif plot_type == 1:
-        nets = [4, 5, 7, 3, 8, 9, 10, 11, 12]
-
-        max_foods = []
-
-        # Go through each network and get the maximum at the generation.
-        for curr_net in nets:
-            # Fetch all of the run ids that match the criteria.
-            ids_l = pgdb.findRuns(curr_net, trail, gen, pop)
-
-            curr_val = pgdb.getMaxFoodAtGeneration(ids_l, gen)
-
-            max_foods.append(curr_val)
-
-        x = np.linspace(2, 10, num=9)
-
-        plot_title = (
-            "Max food sweep with MDLn (2n)-1-4 Networks g{0}/p{1}".format(
-                gen, pop))
-        axis.plot(x, max_foods, '-')
-        axis.plot(x, np.repeat(np.array(max_food), len(x)), 'r--')
-        axis.axis((min(x), max(x), 0, max_food + 5))
-        axis.set_xlabel("Delay Line Length")
-        axis.set_ylabel("Food Consumed")
-        axis.set_title(plot_title)
-
-    canvas = pltagg.FigureCanvasAgg(fig)
-    output = StringIO.StringIO()
-
-    if ext == "tif" or ext == "tiff":
-        canvas.print_tif(output)
-    elif ext == "bmp":
-        canvas.print_bmp(output)
-        this_mime = "image/bmp"
-    elif ext == "eps":
-        canvas.print_eps(output)
-        this_mime = "application/postscript"
-    elif ext == "png":
-        canvas.print_png(output)
-        this_mime = "image/png"
-    elif ext == "pdf":
-        canvas.print_pdf(output)
-        this_mime = "application/pdf"
-    elif ext == "svg":
-        canvas.print_svg(output)
-        this_mime = "image/svg+xml"
-    else:
-        canvas.print_jpg(output)
-        this_mime = "image/jpg"
-        ext = "jpg"
-
-    if (inline):
-        return base64.b64encode(output.getvalue()), plot_title
-    else:
-        response = make_response(output.getvalue())
-        response.mimetype = this_mime
-        response.headers['Content-Disposition'] = (
-            'filename=plot.{0}'.format(ext))
-        return response
-
-
-@app.route(
-    "/plot_old/<int:plot_type>/<int:network>/<int:trail>/<int:gen>/<int:pop>")
-def plot_old(plot_type, network, trail, gen, pop):
-    start = datetime.datetime.now()
-
-    output, plot_title = plot_img(
-        plot_type, network, trail, gen, pop, "png", True)
-
-    finish_time_s = str((datetime.datetime.now() - start).total_seconds())
-
-    pdf_url = url_for(
-        'plot_img', plot_type=plot_type, network=network,
-        trail=trail, gen=gen, pop=pop, ext="pdf")
-
-    eps_url = url_for(
-        'plot_img', plot_type=plot_type, network=network,
-        trail=trail, gen=gen, pop=pop, ext="eps")
-
-    jpg_url = url_for(
-        'plot_img', plot_type=plot_type, network=network,
-        trail=trail, gen=gen, pop=pop, ext="jpg")
-
-    return render_template(
-        "plot_results.html", title=plot_title, image_data=output,
-        time_sec=finish_time_s, pdf_url=pdf_url, eps_url=eps_url,
-        jpg_url=jpg_url)
-
 @app.route('/plot/', defaults={'run_id': 1})
 @app.route('/plot/run_id/<int:run_id>')
 def plot_by_run_id(run_id):
     start = datetime.datetime.now()
 
-    images_l  = []
+    images_l       = []
+    group_images_l = []
 
     for c_elem in ("food", "moves", "moves_stats"):
-        print c_elem
-
-        ch = chart()
         output, _ = plot_img(
             run_id=run_id, ext="png", stat_group=c_elem, inline=True)
 
         finish_time_s = str((datetime.datetime.now() - start).total_seconds())
 
         pdf_url = url_for(
-            'plot_img', run_id=run_id, ext="pdf", stat_group=c_elem)
+            'plot_img', run_id=run_id, ext="pdf", stat_group=c_elem,
+            group=False)
 
         eps_url = url_for(
-            'plot_img', run_id=run_id, ext="eps", stat_group=c_elem)
+            'plot_img', run_id=run_id, ext="eps", stat_group=c_elem,
+            group=False)
 
         jpg_url = url_for(
-            'plot_img', run_id=run_id, ext="jpg", stat_group=c_elem)
+            'plot_img', run_id=run_id, ext="jpg", stat_group=c_elem,
+            group=False)
 
         image_d  = {}
         image_d["data"] = output
@@ -237,17 +90,53 @@ def plot_by_run_id(run_id):
         image_d["jpg"]  = jpg_url
         images_l.append(image_d)
 
+    for c_elem in ("food", "moves", "moves_stats"):
+        output, multiple_run_count = plot_img(
+            run_id=run_id, ext="png", stat_group=c_elem, group=True,
+            inline=True)
+
+        finish_time_s = str((datetime.datetime.now() - start).total_seconds())
+
+        pdf_url = url_for(
+            'plot_img', run_id=run_id, ext="pdf", stat_group=c_elem,
+            group=True)
+
+        eps_url = url_for(
+            'plot_img', run_id=run_id, ext="eps", stat_group=c_elem,
+            group=True)
+
+        jpg_url = url_for(
+            'plot_img', run_id=run_id, ext="jpg", stat_group=c_elem,
+            group=True)
+
+        image_d  = {}
+        image_d["data"] = output
+        image_d["pdf"]  = pdf_url
+        image_d["eps"]  = eps_url
+        image_d["jpg"]  = jpg_url
+        group_images_l.append(image_d)
+
     return render_template(
         "plot_results.html",
-        title="Plots for Run {0}".format(run_id).title(),
-        images_l=images_l,
-        time_sec=finish_time_s)
+        run_id=run_id,
+        images_l=images_l, group_images_l=group_images_l,
+        time_sec=finish_time_s, multiple_run_count=multiple_run_count)
 
-@app.route("/plot/img/<int:run_id>/<ext>/<stat_group>")
-def plot_img(run_id, ext="png", stat_group="food", inline=False):
+@app.route("/plot/img/<int:run_id>/<ext>/<stat_group>/<group>")
+def plot_img(run_id, ext="png", stat_group="food", group=False, inline=False):
+    """ Plots an image of all run_ids that match run_id.
+
+    The returned image will be of type ext.
+    Valid stat_group for plotting are:
+        food, moves, moves_stats
+    If group is True, will take the average across all runs with same
+        run parameters as run_id.
+
+    """
     ch = chart()
 
-    output, plot_title = ch.lineChart([run_id], ext, stat_group=stat_group)
+    output, plot_title = ch.lineChart(run_id, ext, stat_group=stat_group,
+        group=group)
 
     if (inline):
         return base64.b64encode(output.getvalue()), plot_title
@@ -257,19 +146,6 @@ def plot_img(run_id, ext="png", stat_group="food", inline=False):
         response.headers['Content-Disposition'] = (
             'filename=plot.{0}'.format(ext))
         return response
-
-@app.route("/plot_similar/img/<int:run_id>/<ext>/<stat_group>/<mean>")
-def plot_similar_img(run_id, ext="png", stat_group="food",
-    mean=True, inline=False):
-    """ Plots an image of all run_ids that match run_id.
-
-    The returned image will be of type ext.
-    Valid stat_group for plotting are:
-       food, moves, moves_stats
-    If mean is True, will take mean of values rather than plot all.
-
-    """
-    pass
 
 @app.route("/show.png")
 def show_plot():

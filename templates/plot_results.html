@@ -5,7 +5,7 @@
 
 	<head>
 		<meta charset = "utf-8">
-		<title>{{ title }}</title>
+		<title>Run ID {{ run_id }} Plots</title>
 
 		<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
 
@@ -19,23 +19,51 @@
 	</head>
 
 	<body>
-		<h1>{{ title }}</h1>
+		<h1>Run ID {{ run_id }} Plots</h1>
 
-		{% for idx in range(images_l|count) %}
+		<div class="group_box">
+			<div class="group_header">Plots For Just Run {{ run_id }}</div>
 
-		<div class="image_box" id="box{{idx}}">
-			<div id="image{{idx}}">
-				<img src="data:image/png;base64,{{ images_l[idx]["data"] }}" />
+			{% for idx in range(images_l|count) %}
+
+			<div class="image_box" id="box{{idx}}">
+				
+				<div id="image{{idx}}">
+					<img src="data:image/png;base64,{{ images_l[idx]["data"] }}" />
+				</div>
+
+				<div id="urls{{idx}}">
+					<a href="{{ images_l[idx]["pdf"] }}">Download PDF</a> |
+					<a href="{{ images_l[idx]["eps"] }}">Download EPS</a> |
+					<a href="{{ images_l[idx]["jpg"] }}">Download JPG</a>
+				</div>
 			</div>
 
-			<div id="urls{{idx}}">
-				<a href="{{ images_l[idx]["pdf"] }}">Download PDF</a> |
-				<a href="{{ images_l[idx]["eps"] }}">Download EPS</a> |
-				<a href="{{ images_l[idx]["jpg"] }}">Download JPG</a>
-			</div>
+			{% endfor %}
+
 		</div>
 
-		{% endfor %}
+		<div class="group_box">
+			<div class="group_header">Plots for {{ multiple_run_count }} Runs</div>
+
+			{% for idx in range(group_images_l|count) %}
+
+			<div class="image_box" id="box{{idx}}">
+				
+				<div id="image{{idx}}">
+					<img src="data:image/png;base64,{{ images_l[idx]["data"] }}" />
+				</div>
+
+				<div id="urls{{idx}}">
+					<a href="{{ images_l[idx]["pdf"] }}">Download PDF</a> |
+					<a href="{{ images_l[idx]["eps"] }}">Download EPS</a> |
+					<a href="{{ images_l[idx]["jpg"] }}">Download JPG</a>
+				</div>
+			</div>
+
+			{% endfor %}
+
+		</div>
 
 		<div id="footer">
 			Generated in {{ time_sec }} seconds.

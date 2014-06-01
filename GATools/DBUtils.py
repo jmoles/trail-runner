@@ -205,39 +205,48 @@ class DBUtils:
         conn = psycopg2.connect(self.__dsn)
         curs = conn.cursor()
 
-        curs.execute("""SELECT generation, runtime,
+        # TODO: Need to make a view to properly handle this function.
+
+        curs.execute("""SELECT run_id, generation, runtime,
             food_min, food_max, food_avg, food_std,
             moves_min, moves_max, moves_avg, moves_std,
             moves_left, moves_right, moves_forward, moves_none
             FROM generations
             WHERE run_id IN %s;""", (tuple(run_id), ) )
 
-        ret_val = {}
-        curr_dict = {}
+        ret_val  = {}
+        gen_dict = {}
 
         for record in curs:
 
+            curr_run_id        = record[0]
+            curr_gen           = record[1]
+
             food_d             = {}
-            food_d["min"]      = record[2]
-            food_d["max"]      = record[3]
-            food_d["avg"]      = record[4]
-            food_d["std"]      = record[5]
+            food_d["min"]      = record[3]
+            food_d["max"]      = record[4]
+            food_d["avg"]      = record[5]
+            food_d["std"]      = record[6]
 
             move_d             = {}
-            move_d["min"]      = record[6]
-            move_d["max"]      = record[7]
-            move_d["avg"]      = record[8]
-            move_d["std"]      = record[9]
-            move_d["left"]     = record[10]
-            move_d["right"]    = record[11]
-            move_d["forward"]  = record[12]
-            move_d["none"]     = record[13]
+            move_d["min"]      = record[7]
+            move_d["max"]      = record[8]
+            move_d["avg"]      = record[9]
+            move_d["std"]      = record[10]
+            move_d["left"]     = record[11]
+            move_d["right"]    = record[12]
+            move_d["forward"]  = record[13]
+            move_d["none"]     = record[14]
 
-            data_d             = {}
-            data_d["food"]     = food_d
-            data_d["moves"]    = move_d
+            # TODO: Need to double index this table here. Once for run,
+            # and then once for each generation.
+            curr_dict          = { "food" : food_d, "moves" : move_d }
 
-            ret_val[record[0]] = data_d
+            if curr_run_id in ret_val:
+                ret_val[curr_run_id][curr_gen] = curr_dict
+            else:
+                init_dict = {curr_gen : curr_dict }
+                ret_val[curr_run_id] = init_dict
 
         curs.close()
         conn.close()
