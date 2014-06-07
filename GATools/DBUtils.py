@@ -389,3 +389,145 @@ class DBUtils:
         return ret_net
 
 
+    def getAllGenStatAverageRunIds(self, run_ids, group="food",
+        stat="max", max_gen=199):
+        """ Provided a tuple of run_ids, returns the average across
+        all geenrations for the requested stat in the given group.
+
+        Returns:
+            list. Sorted by generation with average at each generation.
+        """
+
+        # TODO: Make this actually work.
+        return
+
+        conn = psycopg2.connect(self.__dsn)
+        curs = conn.cursor()
+
+        if group != "food" and group != "moves":
+            print "ERROR: Invalid type ({0}) of group requested!".format(group)
+            return
+
+        if (stat != "max" and stat != "min" and stat != "avg" and
+            stat != "left" and stat != "right" and stat != "forward" and
+            stat !="none"):
+            print "ERROR: Invalid type ({0}) of stat requested!".format(stat)
+            return
+
+
+        sel_str = "{0}_{1}".format(group, stat)
+
+        #TODO: Finish this query
+        test_query = """SELECT food_max
+        FROM generations
+        WHERE ID IN (SELECT AVG(food_max::numeric)
+            FROM generations
+            WHERE run_id IN %s AND
+            generation in )
+        """
+
+
+        query_str = """SELECT AVG({0}::numeric)
+            FROM generations
+            WHERE
+                generation=%s AND
+                run_id IN %s;""".format(sel_str)
+
+        curs.execute(query_str, (generation, run_ids) )
+
+        ret_val = curs.fetchall()[0][0]
+
+        curs.close()
+        conn.close()
+
+        return ret_val
+
+
+    def getStatAverageRunIds(self, run_ids, generation=199,
+        group="food", stat="max"):
+        """ Provided a tuple of run_ids, returns the average requested
+        stat in the given group.
+
+        Returns:
+            Decimal: With average of requested query.
+
+        """
+        conn = psycopg2.connect(self.__dsn)
+        curs = conn.cursor()
+
+        if group != "food" and group != "moves":
+            print "ERROR: Invalid type ({0}) of group requested!".format(group)
+            return
+
+        if stat != "max" and stat != "min" and stat != "avg":
+            print "ERROR: Invalid type ({0}) of stat requested!".format(stat)
+            return
+
+        sel_str = "{0}_max".format(group)
+
+        if stat == "max":
+            query_str = """SELECT MAX({0}::numeric)
+                FROM generations
+                WHERE
+                    generation=%s AND
+                    run_id IN %s;""".format(sel_str)
+        elif stat == "min":
+            query_str = """SELECT MIN({0}::numeric)
+                FROM generations
+                WHERE
+                    generation=%s AND
+                    run_id IN %s;""".format(sel_str)
+        elif stat == "avg":
+            query_str = """SELECT AVG({0}::numeric)
+                FROM generations
+                WHERE
+                    generation=%s AND
+                    run_id IN %s;""".format(sel_str)
+
+        curs.execute(query_str, (generation, run_ids) )
+
+        ret_val = curs.fetchall()[0][0]
+
+        curs.close()
+        conn.close()
+
+        return ret_val
+
+
+    def getStatAverageLikeRunId(self, run_id, generation=199,
+        group="food", stat="max"):
+        """ Given a run_id, returns the average of the requested stat
+        in the requested group. This function merely does the lookup of the
+        getSameRunIDs as a convinence and calls getStatAverageRunIds.
+
+        """
+
+        run_ids = tuple(self.getSameRunIDs(run_id))
+
+        return self.getStatAverageRunIds(run_ids, generation, group, stat)
+
+
+    def getFirstRunId(self, net, gen, pop, trail=3, max_moves=325):
+        conn = psycopg2.connect(self.__dsn)
+        curs = conn.cursor()
+
+        curs.execute("""SELECT id
+        FROM run
+        WHERE networks_id=%s AND
+        generations=%s AND
+        population=%s AND
+        trails_id=%s AND
+        moves_limit=%s
+        LIMIT 1;""", (net, gen, pop, trail, max_moves))
+
+        ret_val = curs.fetchall()[0][0]
+
+        curs.close()
+        conn.close()
+
+        return ret_val
+
+
+
+
+

@@ -43,6 +43,8 @@
 
 		</div>
 
+		{% if group_images_l != None %}
+
 		<div class="group_box">
 			<div class="group_header">Plots for {{ multiple_run_count }} Runs</div>
 
@@ -64,6 +66,8 @@
 			{% endfor %}
 
 		</div>
+
+		{% endif %}
 
 		<div id="footer">
 			Generated in {{ time_sec }} seconds.

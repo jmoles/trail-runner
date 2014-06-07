@@ -12,8 +12,20 @@ class chart:
     def __init__(self):
         self.__pgdb = DBUtils()
 
+        # Fetch some information for later use.
+        self.__network_list_cache = None
+        self.__trail_list_cache   = None
+        self.__trails_cache       = {}
+        self.__same_run_id_cache  = {}
+        self.__run_info_cache     = {}
+        self.__gen_data_cache     = {}
+
+
     def lineChart(self, run_id, ext="png", stat_group="food",
         stat=None, group=False):
+
+        if not self.__network_list_cache or not self.__trail_list_cache:
+            self.__cacheInit()
 
         if stat_group == "moves_stats" and stat == None:
             stat=["left", "right", "forward", "none"]
@@ -22,7 +34,11 @@ class chart:
 
         # If grouping, get all of the run ids.
         if group:
-            run_ids_l = self.__pgdb.getSameRunIDs(run_id)
+            if not self.__same_run_id_cache.has_key(run_id):
+                run_ids_l = self.__pgdb.getSameRunIDs(run_id)
+                self.__same_run_id_cache[run_id] = run_ids_l
+            else:
+                run_ids_l = self.__same_run_id_cache[run_id]
         else:
             run_ids_l = [run_id]
 
@@ -31,21 +47,46 @@ class chart:
         axis = fig.add_subplot(1,1,1)
 
         # Get information on the run
-        run_info  = self.__pgdb.fetchRunInfo(run_ids_l)
+        ids_search_l = []
+        for curr_id in run_ids_l:
+            if not self.__run_info_cache.has_key(curr_id):
+                ids_search_l.append(curr_id)
+
+        if len(ids_search_l) > 0:
+            self.__run_info_cache = dict(
+                self.__run_info_cache.items() +
+                self.__pgdb.fetchRunInfo(ids_search_l).items())
+
+        run_info = self.__run_info_cache
 
         # Determine the maximum amount of food
-        trail_grid, _, _ = self.__pgdb.getTrailData(
-            run_info[run_id]["trails_id"])
+        if not self.__trails_cache.has_key(run_info[run_id]["trails_id"]):
+            trail_grid, _, _ = self.__pgdb.getTrailData(
+                run_info[run_id]["trails_id"])
+            self.__trails_cache[run_info[run_id]["trails_id"]] = trail_grid
+        else:
+            trail_grid = self.__trails_cache[run_info[run_id]["trails_id"]]
+
         max_food = np.bincount(np.array(trail_grid.flatten())[0])[1]
 
         # Find the network name, trail name, and number of generations.
-        net_name   = self.__pgdb.getNetworks()[run_info[run_id]["networks_id"]]
-        trail_name = self.__pgdb.getTrails()[run_info[run_id]["trails_id"]]
+        net_name   = self.__network_list_cache[run_info[run_id]["networks_id"]]
+        trail_name = self.__trail_list_cache[run_info[run_id]["trails_id"]]
         num_gens   = run_info[run_id]["generations"]
         max_moves  = np.array(run_info[run_id]["moves_limit"])
 
         # Take each run and now fetch data for each.
-        gens_data = self.__pgdb.fetchRunGenerations(run_ids_l)
+        ids_search_l = []
+        for curr_id in run_ids_l:
+            if not self.__gen_data_cache.has_key(curr_id):
+                ids_search_l.append(curr_id)
+
+        if len(ids_search_l) > 0:
+            self.__gen_data_cache = dict(
+                self.__gen_data_cache.items() +
+                self.__pgdb.fetchRunGenerations(ids_search_l).items())
+
+        gens_data = self.__gen_data_cache
 
         x = np.linspace(0, num_gens - 1, num=num_gens)
 
@@ -134,6 +175,81 @@ class chart:
         return (self.__createImage(fig, ext), len(run_ids_l))
 
 
+    def sweepChart(self, ext="png", stat_group="food",
+        stat="max", sweep="dl_length", gp_group=0, net_group=0):
+
+
+        gen_pops = [
+            (200, 300),
+            (400, 150),
+            (600, 100),
+            (800, 75)
+        ]
+
+        networks = [
+            range(2 , 11),
+            range(11, 20),
+            range(20, 29),
+            range(29, 38)
+        ]
+
+        titles = [
+            "MDLn (2n, 5, 4) g{0}/p{1}",
+            "MDLn (2n, 5, 3) g{0}/p{1}",
+            "MDLn (2n, 1, 4) g{0}/p{1}",
+            "MDLn (2n, 1, 3) g{0}/p{1}"
+        ]
+
+        x = range(2, 11)
+
+        fig = pyplot.Figure()
+        axis = fig.add_subplot(1,1,1)
+
+        gen = gen_pops[gp_group][0]
+        pop = gen_pops[gp_group][1]
+
+        for curr_stat in "min", "max", "avg":
+
+            y = []
+
+            for curr_net in networks[net_group]:
+                curr_run_id = self.__pgdb.getFirstRunId(curr_net, gen, pop)
+                y.append(self.__pgdb.getStatAverageLikeRunId(curr_run_id,
+                    group=stat_group, stat=curr_stat, generation=gen - 1))
+
+            max_food = 89
+            max_moves = 325
+
+            axis.plot(x, y, label=curr_stat.title())
+
+        axis.set_title(titles[net_group].format(gen, pop))
+
+        # Determine the maximum type to show.
+        if stat_group == "food":
+            axis.plot(x, np.repeat(np.array(max_food), len(x)), 'r--')
+            axis.axis((2, 10, 0, max_food + 5))
+            axis.set_ylabel("Food Consumed")
+            axis.set_xlabel("Delay Line Length")
+            axis.legend(loc="best")
+        elif stat_group == "moves":
+            axis.plot(x, np.repeat(
+                np.array(max_moves),
+                len(x)), 'r--')
+            axis.axis((2, 10, 0, max_moves + 5))
+            axis.set_ylabel("Moves Taken")
+            axis.set_xlabel("Delay Line Length")
+            axis.legend(loc="lower left")
+        elif stat_group == "moves_stats":
+            axis.axis((2, 10, 0, max_moves + 5))
+            axis.set_ylabel("Moves Taken")
+            axis.set_xlabel("Delay Line Length")
+            axis.legend(loc="upper left", ncol=2)
+
+        fig.set_facecolor('w')
+
+        return (self.__createImage(fig, ext), len(y))
+
+
     def __createImage(self, fig, ext="jpg"):
         """ Takes a matplotlib fig and generates given ext type.
 
@@ -159,3 +275,13 @@ class chart:
             canvas.print_jpg(output)
 
         return output
+
+
+    def __cacheInit(self):
+        """ Initalizes the cached information that is common
+        across the functions.
+
+        """
+        # Fetch the network and trail list.
+        self.__network_list_cache = self.__pgdb.getNetworks()
+        self.__trail_list_cache   = self.__pgdb.getTrails()
