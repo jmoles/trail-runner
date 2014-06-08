@@ -208,19 +208,35 @@ class chart:
         gen = gen_pops[gp_group][0]
         pop = gen_pops[gp_group][1]
 
+        max_food = 89
+        max_moves = 325
+
         for curr_stat in "min", "max", "avg":
 
-            y = []
+            y       = []
+            std_dev = []
 
             for curr_net in networks[net_group]:
                 curr_run_id = self.__pgdb.getFirstRunId(curr_net, gen, pop)
                 y.append(self.__pgdb.getStatAverageLikeRunId(curr_run_id,
                     group=stat_group, stat=curr_stat, generation=gen - 1))
 
-            max_food = 89
-            max_moves = 325
+                if curr_stat == "avg":
+                    # Get the standard deviation
+                    std_dev.append(
+                        self.__pgdb.getStatAverageLikeRunId(curr_run_id,
+                            group=stat_group,
+                            stat="stddev_pop",
+                            generation=gen - 1))
 
-            axis.plot(x, y, label=curr_stat.title())
+            if curr_stat == "avg":
+                axis.errorbar(x, y,
+                    label=curr_stat.title(),
+                    yerr=std_dev
+                    )
+            else:
+                axis.plot(x, y, label=curr_stat.title())
+
 
         axis.set_title(titles[net_group].format(gen, pop))
 

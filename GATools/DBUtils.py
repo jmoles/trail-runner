@@ -459,7 +459,8 @@ class DBUtils:
             print "ERROR: Invalid type ({0}) of group requested!".format(group)
             return
 
-        if stat != "max" and stat != "min" and stat != "avg":
+        if (stat != "max" and stat != "min" and
+            stat != "avg" and stat != "stddev_pop"):
             print "ERROR: Invalid type ({0}) of stat requested!".format(stat)
             return
 
@@ -479,6 +480,12 @@ class DBUtils:
                     run_id IN %s;""".format(sel_str)
         elif stat == "avg":
             query_str = """SELECT AVG({0}::numeric)
+                FROM generations
+                WHERE
+                    generation=%s AND
+                    run_id IN %s;""".format(sel_str)
+        elif stat == "stddev_pop":
+            query_str = """SELECT STDDEV_POP({0}::numeric)
                 FROM generations
                 WHERE
                     generation=%s AND
