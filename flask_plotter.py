@@ -8,9 +8,6 @@ import matplotlib.backends.backend_agg as pltagg
 import mimetypes
 import numpy as np
 
-from flask_wtf import Form
-import wtforms
-
 from GATools.DBUtils import DBUtils
 from GATools.plot.chart import chart
 
@@ -23,24 +20,6 @@ app.secret_key = SECRET_KEY
 
 pgdb = DBUtils()
 
-class MultiCheckboxField(wtforms.SelectMultipleField):
-    """
-    A multiple-select, except displays a list of checkboxes.
-
-    Iterating the field will produce subfields, allowing custom rendering of
-    the enclosed checkbox fields.
-    """
-    widget = wtforms.widgets.ListWidget(prefix_label=False, html_tag="ol")
-
-
-class MyForm(Form):
-    name     = wtforms.TextField('name')
-    networks = MultiCheckboxField(u'Network',
-        choices=pgdb.getNetworks().items())
-    trails   = MultiCheckboxField(u'Trails',
-        choices=pgdb.getTrails().items())
-
-
 def get_trails():
     return pgdb.getTrails().items()
 
@@ -48,14 +27,13 @@ def get_networks():
     return pgdb.getNetworks().items()
 
 
-@app.route("/", methods=("GET", "POST"))
+@app.route("/")
 def index():
-    form = MyForm()
-    if form.validate_on_submit():
-        pass
-    return render_template("plot_form.html", form=form,
-        get_trails=get_trails,
-        get_networks=get_networks)
+    return render_template("home.html")
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
 
 @app.route('/plot/', defaults={'run_id': 1})
 @app.route('/plot/run_id/<int:run_id>')
