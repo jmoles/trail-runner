@@ -1,4 +1,5 @@
 import datetime
+import math
 import os
 import StringIO
 import base64
@@ -21,89 +22,227 @@ app.secret_key = SECRET_KEY
 pgdb = DBUtils()
 
 def get_trails():
+    print pgdb.getTrails().items()
     return pgdb.getTrails().items()
 
 def get_networks():
+    print pgdb.getNetworks().items()
     return pgdb.getNetworks().items()
 
-
-@app.route("/")
+@app.route('/')
 def index():
-    return render_template("home.html")
+    page = request.args.get('page')
+    if page is None:
+        page = 1
+    else:
+        page = int(page)
+
+    rows = request.args.get('rows')
+    if rows is None:
+        rows = 20
+    else:
+        rows = int(rows)
+
+    num_rows, table_data = pgdb.tableListing(
+        page=page,
+        page_size=rows,
+        filters=None)
+    return render_template("home.html",
+        curr_page=page,
+        page_size=rows,
+        max_page=int(math.ceil(float(num_rows) / float(rows))),
+        table_data=table_data,
+        filters=None)
 
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404
 
-@app.route('/plot/', defaults={'run_id': 1})
-@app.route('/plot/run_id/<int:run_id>')
-def plot_by_run_id(run_id):
+@app.route('/config/<int:config_id>')
+def config_by_id(config_id):
     start = datetime.datetime.now()
 
-    images_l       = []
     group_images_l = []
 
     ch = chart()
 
     for c_elem in ("food", "moves", "moves_stats"):
-        output, _ = plot_img(
-            run_id=run_id, ext="png", stat_group=c_elem, inline=True,
-            chart_inst=ch)
+        output, multiple_run_count = plot_by_config_id(
+            config_id=config_id,
+            ext="svg",
+            stat_group=c_elem,
+            inline=True,
+            chart_inst=ch,
+            show_title=False)
 
         pdf_url = url_for(
-            'plot_img', run_id=run_id, ext="pdf", stat_group=c_elem,
-            group=False, chart_inst=ch)
+            'plot_by_config_id',
+            config_id=config_id,
+            ext="pdf",
+            stat_group=c_elem,
+            chart_inst=ch,
+            show_title=False)
 
         eps_url = url_for(
-            'plot_img', run_id=run_id, ext="eps", stat_group=c_elem,
-            group=False, chart_inst=ch)
+            'plot_by_config_id',
+            config_id=config_id,
+            ext="eps",
+            stat_group=c_elem,
+            chart_inst=ch,
+            show_title=False)
 
         jpg_url = url_for(
-            'plot_img', run_id=run_id, ext="jpg", stat_group=c_elem,
-            group=False, chart_inst=ch)
+            'plot_by_config_id',
+            config_id=config_id,
+            ext="jpg",
+            stat_group=c_elem,
+            chart_inst=ch,
+            show_title=False)
+
+        png_url = url_for(
+            'plot_by_config_id',
+            config_id=config_id,
+            ext="png",
+            stat_group=c_elem,
+            chart_inst=ch,
+            show_title=False)
 
         image_d  = {}
         image_d["data"] = output
         image_d["pdf"]  = pdf_url
         image_d["eps"]  = eps_url
         image_d["jpg"]  = jpg_url
-        images_l.append(image_d)
+        image_d["png"]  = png_url
+        if c_elem == "food":
+            image_d["title"] = "Food vs. Generations"
+        elif c_elem == "moves":
+            image_d["title"] = "Moves vs. Generations"
+        elif c_elem == "moves_stats":
+            image_d["title"] = "Move Types vs. Generations"
+        else:
+            image_d["title"] = "Unknown Type"
+
+        group_images_l.append(image_d)
+
+    config_info =  pgdb.fetchConfigInfo(config_id)
+
+    trail_name   = pgdb.getTrails()[config_info["trails_id"]]
+    network_name = pgdb.getNetworks()[config_info["networks_id"]]
+    mutate_name  = pgdb.getMutates()[config_info["mutate_id"]]
+
+    table_data   = pgdb.fetchConfigRunsInfo(config_id)
+
+    finish_time_s = str((datetime.datetime.now() - start).total_seconds())
+
+    return render_template(
+        "run_config.html",
+        config_id      = config_id,
+        run_config     = config_info,
+        group_images_l = group_images_l,
+        time_sec       = finish_time_s,
+        num_runs       = multiple_run_count,
+        trail_name     = trail_name,
+        network_name   = network_name,
+        mutate_name    = mutate_name,
+        table_data     = table_data)
+
+@app.route('/trail/<int:trail_id>')
+def trail_by_id(trail_id):
+    pass
+
+@app.route('/network/<int:network_id>')
+def network_by_id(network_id):
+    pass
+
+@app.route('/run/<int:run_id>')
+def plot_by_run_id(run_id):
+    start = datetime.datetime.now()
+
+    images_l       = []
+
+    ch = chart()
 
     for c_elem in ("food", "moves", "moves_stats"):
-        output, multiple_run_count = plot_img(
-            run_id=run_id, ext="png", stat_group=c_elem, group=True,
-            inline=True, chart_inst=ch)
+        output, plot_title = plot_img(
+            run_id=run_id, ext="svg", stat_group=c_elem, inline=True,
+            chart_inst=ch, show_title=False)
 
         pdf_url = url_for(
             'plot_img', run_id=run_id, ext="pdf", stat_group=c_elem,
-            group=True, chart_inst=ch)
+            group=False, chart_inst=ch, show_title=False)
 
         eps_url = url_for(
             'plot_img', run_id=run_id, ext="eps", stat_group=c_elem,
-            group=True, chart_inst=ch)
+            group=False, chart_inst=ch, show_title=False)
 
         jpg_url = url_for(
             'plot_img', run_id=run_id, ext="jpg", stat_group=c_elem,
-            group=True, chart_inst=ch)
+            group=False, chart_inst=ch, show_title=False)
+
+        png_url = url_for(
+            'plot_img', run_id=run_id, ext="jpg", stat_group=c_elem,
+            group=False, chart_inst=ch, show_title=False)
 
         image_d  = {}
-        image_d["data"] = output
-        image_d["pdf"]  = pdf_url
-        image_d["eps"]  = eps_url
-        image_d["jpg"]  = jpg_url
-        group_images_l.append(image_d)
+        image_d["data"]  = output
+        image_d["pdf"]   = pdf_url
+        image_d["eps"]   = eps_url
+        image_d["jpg"]   = jpg_url
+        image_d["png"]   = png_url
+        if c_elem == "food":
+            image_d["title"] = "Food vs. Generations"
+        elif c_elem == "moves":
+            image_d["title"] = "Moves vs. Generations"
+        elif c_elem == "moves_stats":
+            image_d["title"] = " Move Types vs. Generations"
+        else:
+            image_d["title"] = "Unknown Type"
+        images_l.append(image_d)
+
+    run_information =  pgdb.fetchRunInfo(run_id)[run_id]
+    run_information["run_date"] = run_information["run_date"].strftime("%c")
+    runtime_sec = run_information["runtime"].total_seconds()
+    run_information["runtime"] = '{:02}:{:02}:{:02}'.format(
+        int(round(runtime_sec // 3600)),
+        int(round(runtime_sec % 3600 // 60)),
+        int(round(runtime_sec % 60)))
+
+    trail_name   = pgdb.getTrails()[run_information["trails_id"]]
+    network_name = pgdb.getNetworks()[run_information["networks_id"]]
+    mutate_name  = pgdb.getMutates()[run_information["mutate_id"]]
 
     finish_time_s = str((datetime.datetime.now() - start).total_seconds())
 
     return render_template(
         "plot_results.html",
-        title="Run ID {0} Plots".format(run_id),
-        images_l=images_l, group_images_l=group_images_l,
-        time_sec=finish_time_s, multiple_run_count=multiple_run_count)
+        run_id=run_id,
+        run_info=run_information,
+        images_l=images_l,
+        time_sec=finish_time_s,
+        trail_name=trail_name,
+        network_name=network_name,
+        mutate_name=mutate_name)
+
+@app.route("/plot/line/config_id/<int:config_id>/<ext>/<stat_group>")
+def plot_by_config_id(config_id, ext="png", stat_group ="food",
+    inline=False, chart_inst=chart(), show_title=True):
+
+    output, plot_title = chart_inst.lineChartByConfigId(config_id, ext,
+        stat_group=stat_group, title=show_title)
+
+    if (inline):
+        return base64.b64encode(output.getvalue()), plot_title
+    else:
+        response = make_response(output.getvalue())
+        response.mimetype = mimetypes.guess_type("plot.{0}".format(ext))[0]
+        response.headers['Content-Disposition'] = (
+            'filename=plot.{0}'.format(ext))
+        return response
 
 @app.route("/plot/img/<int:run_id>/<ext>/<stat_group>/<group>")
 def plot_img(run_id, ext="png", stat_group="food", group=False, inline=False,
-    chart_inst=chart(), chart_type="line", gp_group=0, net_group=0):
+    chart_inst=chart(), chart_type="line", gp_group=0, net_group=0,
+    show_title=True):
     """ Plots an image of all run_ids that match run_id.
 
     The returned image will be of type ext.
@@ -115,7 +254,7 @@ def plot_img(run_id, ext="png", stat_group="food", group=False, inline=False,
     """
     if chart_type == "line":
         output, plot_title = chart_inst.lineChart(run_id, ext,
-            stat_group=stat_group, group=group)
+            stat_group=stat_group, group=group, title=show_title)
     elif chart_type == "sweep":
         output, plot_title = chart_inst.sweepChart(ext="png",
             stat_group=stat_group, stat="max", sweep="dl_length",
@@ -179,26 +318,6 @@ def plot_sweep():
         images_l=images_l, group_images_l=None,
         time_sec=finish_time_s, multiple_run_count=None)
 
-
-@app.route("/show.png")
-def show_plot():
-    fig = plt.Figure()
-    axis = fig.add_subplot(1,1,1)
-    axis.set_xlabel("Generation")
-    axis.set_ylabel("Food Consumed")
-
-
-    xs = range(100)
-    ys = [np.random.randint(1, 50 ) for x in xs]
-
-    axis.plot(xs, ys)
-
-    canvas = pltagg.FigureCanvasAgg(fig)
-    output = StringIO.StringIO()
-    canvas.print_png(output)
-    response = make_response(output.getvalue())
-    response.mimetype = "image/png"
-    return response
 
 
 if __name__ == '__main__':

@@ -4,9 +4,9 @@ import os
 import unittest
 
 # Parts of design under test.
-from ..DBUtils import DBUtils
-from ..trail.trail import trail
-from ..trail.trail import GridVals
+from DBUtils import DBUtils
+from trail.trail import trail
+from trail.trail import GridVals
 
 
 TEST_TRAIL = np.matrix(

@@ -10,57 +10,124 @@
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/normalize.min.css') }}">
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-        <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+        <link rel="stylesheet" href="{{
+          url_for('static', filename='css/bootstrap.min.css') }}">
+        <style>
+            body {
+                padding-top: 50px;
+                padding-bottom: 20px;
+            }
+        </style>
+        <link rel="stylesheet" href="{{
+          url_for('static', filename='css/bootstrap-theme.min.css') }}">
+        <link rel="stylesheet" href="{{
+          url_for('static', filename='css/main.css') }}">
 
-        <script src="{{ url_for('static', filename='js/vendor/modernizr-2.6.2.min.js') }}"></script>
+        <link rel="shortcut icon" href="{{url_for('static', filename='favicon.ico') }}" />
+
+        <script src="{{
+          url_for('static', filename='js/vendor/modernizr-2.6.2-respond-1.1.0.min.js') }}"></script>
     </head>
+
     <body>
         <!--[if lt IE 7]>
             <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
         <![endif]-->
+    <ol class="breadcrumb navbar-fixed-top" role="navigation">
+      <li><a href="/">Home</a></li>
+      <li><a href="#">Library</a></li>
+      <li class="active">Data</li>
+    </ol>
 
-        <p>Hello world! This is HTML5 Boilerplate.</p>
+    {% if (max_page > 1) %}
+    <div class="container-fluid text-center">
+        <ul class="pagination">
+            {% if (curr_page > 1) %}
+                <li><a href="{{ url_for('index', page=(curr_page - 1), rows=page_size) }}">&laquo;</a></li>
+            {% else %}
+                <li class="disabled"><a href="#">&laquo;</a></li>
+            {% endif %}
 
-        <table>
-        <tr>
-            <th>Trail</th>
-            <th>Network</th>
-            <th>Generations</th>
-            <th>Population</th>
-            <th>Move Limit</th>
-            <th>Elite (HoF) Size</th>
-            <th>Mutate Type</th>
-            <th>P(mutation)</th>
-            <th>P(crossover)</th>
-            <th>Minimum Weight</th>
-            <th>Maximum Weight</th>
-            <th>Run Count</th>
-            <th>Run IDs</th>
-        </tr>
-        <tr>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-        </tr>
-    </table>
+            {% for page_iter in range(1, max_page + 1, 1) %}
+                {% if (page_iter == curr_page) %}
+                    <li class="active"><a href="#">{{ page_iter }}<span class="sr-only">(current)</span></a></li>
+                {% else %}
+                    <li><a href="{{ url_for('index', page=page_iter, rows=page_size) }}">{{ page_iter }}</a></li>
+                {% endif %}
+            {% endfor %}
 
+            {% if (curr_page < max_page) %}
+                <li><a href="{{ url_for('index', page=(curr_page + 1), rows=page_size) }}">&raquo;</a></li>
+            {% else %}
+                <li class="disabled"><a href="#">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
 
-        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-        <script>window.jQuery || document.write('<script src="{{ url_for('static', filename='js/vendor/jquery-1.11.0.min.js') }}"><\/script>')</script>
+    <div class="container">
+        <table class="table">
+            <tr>
+                <th>Trail</th>
+                <th>Network</th>
+                <th>Generations</th>
+                <th>Population</th>
+                <th>Move Limit</th>
+                <th>Elite (HoF) Size</th>
+                <th>Mutate Type</th>
+                <th>P(mutation)</th>
+                <th>P(crossover)</th>
+                <th>Minimum Weight</th>
+                <th>Maximum Weight</th>
+                <th>Run Count</th>
+                <th>Run IDs</th>
+            </tr>
+            {% for curr_line in table_data %}
+            <tr>
+                
+                    <td>{{ curr_line[1]  }}</td>
+                    <td>{{ curr_line[2]  }}</td>
+                    <td>{{ curr_line[3]  }}</td>
+                    <td>{{ curr_line[4]  }}</td>
+                    <td>{{ curr_line[5]  }}</td>
+                    <td>{{ curr_line[6]  }}</td>
+                    <td>{{ curr_line[7]  }}</td>
+                    <td>{{ curr_line[8]  }}</td>
+                    <td>{{ curr_line[9]  }}</td>
+                    <td>{{ curr_line[10]  }}</td>
+                    <td>{{ curr_line[11]  }}</td>
+                    <td>{{ curr_line[12]|length  }}</td>
+                    <td>
+                    {% for curr_run_id in curr_line[12] %}
+                        <a href="{{ url_for('plot_by_run_id', run_id=curr_run_id) }}">{{ curr_run_id }}</a>&nbsp;
+                    {% endfor %}
+                    </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div><!-- /container --> 
 
-        <script src="{{ url_for('static', filename='js/plugins.js') }}"></script>
-        <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <div class="container-fluid text-center">
+        <ul class="pagination">
+          <li><a href="#">&laquo;</a></li>
+          <li><a href="#">1</a></li>
+          <li><a href="#">2</a></li>
+          <li><a href="#">3</a></li>
+          <li><a href="#">4</a></li>
+          <li><a href="#">5</a></li>
+          <li><a href="#">&raquo;</a></li>
+        </ul>
+    </div>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+        <script>window.jQuery || document.write('<script src="{{
+          url_for('static', filename='js/vendor/jquery-1.11.0.min.js') }}"><\/script>')</script>
+
+        <script src="{{
+          url_for('static', filename='js/vendor/bootstrap.min.js') }}"></script>
+
+        <script src="{{
+          url_for('static', filename='js/plugins.js') }}"></script>
+        <script src="{{
+          url_for('static', filename='js/main.js') }}"></script>
     </body>
 </html>

@@ -1,6 +1,9 @@
+from contextlib import contextmanager
 import numpy as np
 import os
 import psycopg2
+import psycopg2.pool
+import sys
 
 try:
     import cPickle as pickle
@@ -25,7 +28,8 @@ class DBUtils:
         host=os.environ["PSYCOPG2_DB_HOST"],
         db=os.environ["PSYCOPG2_DB_DB"],
         user=os.environ["PSYCOPG2_DB_USER"],
-        password=os.environ["PSYCOPG2_DB_PASS"]):
+        password=os.environ["PSYCOPG2_DB_PASS"],
+        debug=False):
 
         self.__dsn = "host={0} dbname={1} user={2} password={3}".format(
             host, db, user, password)
@@ -33,22 +37,32 @@ class DBUtils:
         self.__conn        = None
         self.__cursor      = None
 
+        self.__debug       = debug
+
+        self.__pool        = psycopg2.pool.SimpleConnectionPool(
+            1,
+            10,
+            self.__dsn)
+
+    @contextmanager
+    def __getCursor(self):
+        con = self.__pool.getconn()
+        try:
+            yield con.cursor()
+        finally:
+            self.__pool.putconn(con)
+
     def fetchNetworksList(self):
         net_s = ""
         net_i = []
         net_l = []
 
-        conn = psycopg2.connect(self.__dsn)
-        curs = conn.cursor()
-
-        curs.execute("SELECT id, name FROM networks")
-        for idx, name in curs.fetchall():
-            net_s += ("\t" + str(idx) + ": " + name + "\n")
-            net_i.append(idx)
-            net_l.append(name)
-
-        curs.close()
-        conn.close()
+        with self.__getCursor() as curs:
+            curs.execute("SELECT id, name FROM networks")
+            for idx, name in curs.fetchall():
+                net_s += ("\t" + str(idx) + ": " + name + "\n")
+                net_i.append(idx)
+                net_l.append(name)
 
         return net_s, net_i, net_l
 
@@ -61,18 +75,13 @@ class DBUtils:
         trail_s = ""
         trail_i = []
 
-        conn = psycopg2.connect(self.__dsn)
-        curs = conn.cursor()
+        with self.__getCursor() as curs:
+            curs.execute("SELECT id, name, moves FROM trails")
 
-        curs.execute("SELECT id, name, moves FROM trails")
-
-        for idx, name, moves in curs.fetchall():
-            trail_s += ("\t" + str(idx) + ":" + name +
-                " (" + str(moves) + ")\n")
-            trail_i.append(idx)
-
-        curs.close()
-        conn.close()
+            for idx, name, moves in curs.fetchall():
+                trail_s += ("\t" + str(idx) + ":" + name +
+                    " (" + str(moves) + ")\n")
+                trail_i.append(idx)
 
         return trail_s, trail_i
 
@@ -82,64 +91,133 @@ class DBUtils:
     def getTrails(self):
         return self.__genericDictGet("SELECT id, name FROM trails")
 
+    def getMutates(self):
+        return self.__genericDictGet("SELECT id, name FROM mutate")
+
+    def getRunConfigID(self, run_info):
+        """ Gets the id in the run_config table based off a run_info dict.
+
+        This is performed by checking if the configuration of the run exists
+        in the database. If it does not, it is added and a run
+        configuration id is created and returned.
+
+        If debug is set, operation will not commit.
+        """
+        conn = psycopg2.connect(self.__dsn)
+        curs = conn.cursor()
+
+        curs.execute("""SELECT id
+            FROM run_config
+            WHERE
+            networks_id                    = %s AND
+            trails_id                      = %s AND
+            mutate_id                      = %s AND
+            generations                    = %s AND
+            population                     = %s AND
+            moves_limit                    = %s AND
+            elite_count                    = %s AND
+            round(p_mutate::numeric, 4)    = %s AND
+            round(p_crossover::numeric, 4) = %s AND
+            weight_min                     = %s AND
+            weight_max                     = %s
+            """, (
+                run_info["networks_id"],
+                run_info["trails_id"],
+                run_info["mutate_id"],
+                run_info["generations"],
+                run_info["population"],
+                run_info["moves_limit"],
+                run_info["elite_count"],
+                round(run_info["p_mutate"], 4),
+                round(run_info["p_crossover"], 4),
+                run_info["weight_min"],
+                run_info["weight_max"]
+        ))
+
+        # If no row is found, need to add it and get id.
+        if curs.rowcount < 1:
+            if self.__debug:
+                print "DEBUG: Row did not exist. Would have inserted row."
+
+            curs.execute("""INSERT INTO run_config (
+                    networks_id,
+                    trails_id,
+                    mutate_id,
+                    generations,
+                    population,
+                    moves_limit,
+                    elite_count,
+                    p_mutate,
+                    p_crossover,
+                    weight_min,
+                    weight_max
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id;""", (
+                    run_info["networks_id"],
+                    run_info["trails_id"],
+                    run_info["mutate_id"],
+                    run_info["generations"],
+                    run_info["population"],
+                    run_info["moves_limit"],
+                    run_info["elite_count"],
+                    run_info["p_mutate"],
+                    run_info["p_crossover"],
+                    run_info["weight_min"],
+                    run_info["weight_max"]
+            ))
+        elif self.__debug:
+            print "DEBUG: Row was found!"
+
+        # Get the run_id from either first search or second insert.
+        run_id = curs.fetchone()[0]
+
+        if not self.__debug:
+            conn.commit()
+        else:
+            conn.rollback()
+            print "DEBUG: id of the row was {0}.".format(run_id)
+
+        curs.close()
+        conn.close()
+
+        return run_id
+
     def recordRun(self, run_info, gen_info):
         conn = psycopg2.connect(self.__dsn)
         curs = conn.cursor()
 
-        curs.execute("""
-            INSERT INTO run (id, trails_id, networks_id, mutate_id,
-                host_configs_id, run_date, runtime,
-                hostname, generations, population,
-                moves_limit, elite_count, p_mutate,
-                p_crossover, weight_min, weight_max, debug)
-            VALUES (
-            DEFAULT,
-            %(trails_id)s,
-            %(networks_id)s,
-            %(mutate_id)s,
-            %(host_type_id)s,
-            %(run_date)s,
-            %(runtime)s,
-            %(hostname)s,
-            %(generations)s,
-            %(population)s,
-            %(moves_limit)s,
-            %(elite_count)s,
-            %(p_mutate)s,
-            %(p_crossover)s,
-            %(weight_min)s,
-            %(weight_max)s,
-            %(debug)s) RETURNING id;""", run_info)
+        # See if this configuration exists in the run_configurations.
+        # Add it to the table if not, if so, just use the config_id.
 
-        run_id = curs.fetchone()[0]
+        run_id = self.getRunConfigID(run_info)
 
         for curr_gen in gen_info:
             curr_gen["run_id"] = run_id
 
-        curs.executemany("""
-            INSERT INTO generations (id, run_id, generation, runtime,
-                food_max, food_min, food_avg, food_std,
-                moves_max, moves_min, moves_avg, moves_std,
-                moves_left, moves_right, moves_forward, moves_none,
-                elite)
-            VALUES (
-            DEFAULT,
-            %(run_id)s,
-            %(gen)s,
-            %(runtime)s,
-            %(food_max)s,
-            %(food_min)s,
-            %(food_avg)s,
-            %(food_std)s,
-            %(moves_max)s,
-            %(moves_min)s,
-            %(moves_avg)s,
-            %(moves_std)s,
-            %(moves_left)s,
-            %(moves_right)s,
-            %(moves_forward)s,
-            %(moves_none)s,
-            %(elite)s); """, gen_info)
+            curs.executemany("""
+                INSERT INTO generations (id, run_id, generation, runtime,
+                    food_max, food_min, food_avg, food_std,
+                    moves_max, moves_min, moves_avg, moves_std,
+                    moves_left, moves_right, moves_forward, moves_none,
+                    elite)
+                VALUES (
+                DEFAULT,
+                %(run_id)s,
+                %(gen)s,
+                %(runtime)s,
+                %(food_max)s,
+                %(food_min)s,
+                %(food_avg)s,
+                %(food_std)s,
+                %(moves_max)s,
+                %(moves_min)s,
+                %(moves_avg)s,
+                %(moves_std)s,
+                %(moves_left)s,
+                %(moves_right)s,
+                %(moves_forward)s,
+                %(moves_none)s,
+                %(elite)s); """, gen_info)
 
         conn.commit()
 
@@ -148,149 +226,112 @@ class DBUtils:
 
 
     def __genericDictGet(self, query):
-        conn = psycopg2.connect(self.__dsn)
-        curs = conn.cursor()
-
         ret_dict = {}
 
-        curs.execute(query)
-        for idx, name in curs.fetchall():
-            ret_dict[idx] = name
-
-        curs.close()
-        conn.close()
+        with self.__getCursor() as curs:
+            curs.execute(query)
+            for idx, name in curs.fetchall():
+                ret_dict[idx] = name
 
         return ret_dict
 
 
     def getTrailData(self, trailID):
-        conn = psycopg2.connect(self.__dsn)
-        curs = conn.cursor()
+        with self.__getCursor() as curs:
+            curs.execute("""SELECT trail_data, name, init_rot FROM trails
+                WHERE id=%s;""", (trailID, ))
 
-        curs.execute("""SELECT trail_data, name, init_rot FROM trails
-            WHERE id=%s;""", (trailID, ))
-
-        curs_results = curs.fetchall()[0]
-
-        curs.close()
-        conn.close()
+            curs_results = curs.fetchall()[0]
 
         return np.matrix(curs_results[0]), curs_results[1], curs_results[2]
 
-    def findRuns(self, network=1, trail=3, gen=200, pop=300):
-        conn = psycopg2.connect(self.__dsn)
-        curs = conn.cursor()
-
-        curs.execute("""SELECT id
-            FROM run
-            WHERE trails_id=%s AND
-            networks_id=%s AND
-            generations=%s AND
-            population=%s;""",
-            (trail,
-            network,
-            gen,
-            pop))
-
-        ret_val = []
-        for record in curs:
-            ret_val.append(record[0])
-
-        curs.close()
-        conn.close()
-
-        return ret_val
-
     def fetchRunGenerations(self, run_id):
-        conn = psycopg2.connect(self.__dsn)
-        curs = conn.cursor()
 
         # TODO: Need to make a view to properly handle this function.
 
-        curs.execute("""SELECT run_id, generation, runtime,
-            food_min, food_max, food_avg, food_std,
-            moves_min, moves_max, moves_avg, moves_std,
-            moves_left, moves_right, moves_forward, moves_none
-            FROM generations
-            WHERE run_id IN %s;""", (tuple(run_id), ) )
+        with self.__getCursor() as curs:
+            curs.execute("""SELECT run_id, generation, runtime,
+                food_min, food_max, food_avg, food_std,
+                moves_min, moves_max, moves_avg, moves_std,
+                moves_left, moves_right, moves_forward, moves_none
+                FROM generations
+                WHERE run_id IN %s;""", (tuple(run_id), ) )
 
-        ret_val  = {}
-        gen_dict = {}
+            ret_val  = {}
+            gen_dict = {}
 
-        for record in curs:
+            for record in curs:
 
-            curr_run_id        = record[0]
-            curr_gen           = record[1]
+                curr_run_id        = record[0]
+                curr_gen           = record[1]
 
-            food_d             = {}
-            food_d["min"]      = record[3]
-            food_d["max"]      = record[4]
-            food_d["avg"]      = record[5]
-            food_d["std"]      = record[6]
+                food_d             = {}
+                food_d["min"]      = record[3]
+                food_d["max"]      = record[4]
+                food_d["avg"]      = record[5]
+                food_d["std"]      = record[6]
 
-            move_d             = {}
-            move_d["min"]      = record[7]
-            move_d["max"]      = record[8]
-            move_d["avg"]      = record[9]
-            move_d["std"]      = record[10]
-            move_d["left"]     = record[11]
-            move_d["right"]    = record[12]
-            move_d["forward"]  = record[13]
-            move_d["none"]     = record[14]
+                move_d             = {}
+                move_d["min"]      = record[7]
+                move_d["max"]      = record[8]
+                move_d["avg"]      = record[9]
+                move_d["std"]      = record[10]
+                move_d["left"]     = record[11]
+                move_d["right"]    = record[12]
+                move_d["forward"]  = record[13]
+                move_d["none"]     = record[14]
 
-            # TODO: Need to double index this table here. Once for run,
-            # and then once for each generation.
-            curr_dict          = { "food" : food_d, "moves" : move_d }
+                # TODO: Need to double index this table here. Once for run,
+                # and then once for each generation.
+                curr_dict          = { "food" : food_d, "moves" : move_d }
 
-            if curr_run_id in ret_val:
-                ret_val[curr_run_id][curr_gen] = curr_dict
-            else:
-                init_dict = {curr_gen : curr_dict }
-                ret_val[curr_run_id] = init_dict
-
-        curs.close()
-        conn.close()
+                if curr_run_id in ret_val:
+                    ret_val[curr_run_id][curr_gen] = curr_dict
+                else:
+                    init_dict = {curr_gen : curr_dict }
+                    ret_val[curr_run_id] = init_dict
 
         return ret_val
 
     def fetchRunInfo(self, run_id):
-        conn = psycopg2.connect(self.__dsn)
-        curs = conn.cursor()
+        if isinstance(run_id, int):
+            run_id = (run_id, )
 
-        curs.execute("""SELECT id, trails_id, networks_id, mutate_id,
-            host_configs_id, run_date, runtime, hostname, generations,
-            population, moves_limit, elite_count, p_mutate, p_crossover,
-            weight_min, weight_max, debug
-            FROM run
-            WHERE id IN %s;""", (tuple(run_id), ) )
+        with self.__getCursor() as curs:
+            curs.execute("""SELECT run.id, trails_id, networks_id, mutate_id,
+                host_configs_id, run_date, runtime, hostname, generations,
+                population, moves_limit, elite_count, p_mutate, p_crossover,
+                weight_min, weight_max, debug, run_config.id
+                FROM run
+                INNER JOIN run_config
+                ON run.run_config_id = run_config.id
+                WHERE run.id IN %s;""", (tuple(run_id), ) )
 
-        ret_val = {}
+            ret_val = {}
 
-        for record in curs:
-            curr_dict                    = {}
+            for record in curs:
+                curr_dict                    = {}
 
-            this_run_id                  = record[0]
-            curr_dict["trails_id"]       = record[1]
-            curr_dict["networks_id"]     = record[2]
-            curr_dict["mutate_id"]       = record[3]
-            curr_dict["host_configs_id"] = record[4]
-            curr_dict["run_date"]        = record[5]
-            curr_dict["runtime"]         = record[6]
-            curr_dict["hostname"]        = record[7]
-            curr_dict["generations"]     = record[8]
-            curr_dict["population"]      = record[9]
-            curr_dict["moves_limit"]     = record[10]
-            curr_dict["elite_count"]     = record[11]
-            curr_dict["p_mutate"]        = record[12]
-            curr_dict["p_crossover"]     = record[13]
-            curr_dict["weight_min"]      = record[14]
-            curr_dict["weight_max"]      = record[15]
-            curr_dict["debug"]           = record[16]
+                this_run_id                  = record[0]
+                curr_dict["trails_id"]       = record[1]
+                curr_dict["networks_id"]     = record[2]
+                curr_dict["mutate_id"]       = record[3]
+                curr_dict["host_configs_id"] = record[4]
+                curr_dict["run_date"]        = record[5]
+                curr_dict["runtime"]         = record[6]
+                curr_dict["hostname"]        = record[7]
+                curr_dict["generations"]     = record[8]
+                curr_dict["population"]      = record[9]
+                curr_dict["moves_limit"]     = record[10]
+                curr_dict["elite_count"]     = record[11]
+                curr_dict["p_mutate"]        = record[12]
+                curr_dict["p_crossover"]     = record[13]
+                curr_dict["weight_min"]      = record[14]
+                curr_dict["weight_max"]      = record[15]
+                curr_dict["debug"]           = record[16]
+                curr_dict["run_config_id"]   = record[17]
 
-            ret_val[this_run_id]       = curr_dict
-
-        curs.close()
-        conn.close()
+                ret_val[this_run_id]       = curr_dict
 
         return ret_val
 
@@ -303,76 +344,38 @@ class DBUtils:
                the passed in run_id.
 
         """
-        conn = psycopg2.connect(self.__dsn)
-        curs = conn.cursor()
+        with self.__getCursor() as curs:
+            curs.execute("""SELECT id FROM run WHERE run_config_id =
+                (SELECT run_config_id FROM run WHERE id = %s);""",
+                (run_id, ))
 
-        # First, fetch the parameters that this run went with.
-        this_run_d = self.fetchRunInfo([run_id])[run_id]
+            ret_val = []
 
-        # Now, excute a query that has that matches this run info.
-        curs.execute("""SELECT id
-            FROM run
-            WHERE trails_id = %s AND
-            networks_id = %s AND
-            mutate_id = %s AND
-            generations = %s AND
-            population = %s AND
-            moves_limit = %s AND
-            elite_count = %s AND
-            round(p_mutate::numeric, 4) = %s AND
-            round(p_crossover::numeric, 4) = %s AND
-            weight_min = %s AND
-            weight_max = %s AND
-            debug = %s;""", (
-            this_run_d["trails_id"],
-            this_run_d["networks_id"],
-            this_run_d["mutate_id"],
-            this_run_d["generations"],
-            this_run_d["population"],
-            this_run_d["moves_limit"],
-            this_run_d["elite_count"],
-            round(this_run_d["p_mutate"], 4),
-            round(this_run_d["p_crossover"], 4),
-            this_run_d["weight_min"],
-            this_run_d["weight_max"],
-            this_run_d["debug"]) )
+            for record in curs:
+                ret_val.append(record[0])
 
-        ret_val = []
-
-        for record in curs:
-            ret_val.append(record[0])
-
-        curs.close()
-        conn.close()
 
         return ret_val
 
     def getMaxFoodAtGeneration(self, run_ids, generation):
-        conn = psycopg2.connect(self.__dsn)
-        curs = conn.cursor()
+        with self.__getCursor() as curs:
+            curs.execute("""SELECT MAX(food_max) AS food_max
+                FROM generations
+                WHERE generation=%s AND
+                run_id IN %s;""", (generation - 1, tuple(run_ids), ) )
 
-        curs.execute("""SELECT MAX(food_max) AS food_max
-            FROM generations
-            WHERE generation=%s AND
-            run_id IN %s;""", (generation - 1, tuple(run_ids), ) )
-
-        ret_val = curs.fetchall()[0][0]
-
-        curs.close()
-        conn.close()
+            ret_val = curs.fetchall()[0][0]
 
         return ret_val
 
 
     def getNetworkByID(self, network_id):
-        conn = psycopg2.connect(self.__dsn)
-        curs = conn.cursor()
+        with self.__getCursor() as curs:
+            curs.execute("""SELECT net
+                FROM networks
+                WHERE id=%s;""", (network_id, ) )
 
-        curs.execute("""SELECT net
-            FROM networks
-            WHERE id=%s;""", (network_id, ) )
-
-        results = curs.fetchall()
+            results = curs.fetchall()
 
         if not results:
             print "No network was found for network_id {0}".format(network_id)
@@ -382,9 +385,6 @@ class DBUtils:
         ret_sio = StringIO.StringIO(results[0][0])
 
         ret_net = pickle.load(ret_sio)
-
-        curs.close()
-        conn.close()
 
         return ret_net
 
@@ -426,19 +426,16 @@ class DBUtils:
             generation in )
         """
 
-
         query_str = """SELECT AVG({0}::numeric)
             FROM generations
             WHERE
                 generation=%s AND
                 run_id IN %s;""".format(sel_str)
 
-        curs.execute(query_str, (generation, run_ids) )
+        with self.__getCursor() as curs:
+            curs.execute(query_str, (generation, run_ids) )
 
-        ret_val = curs.fetchall()[0][0]
-
-        curs.close()
-        conn.close()
+            ret_val = curs.fetchall()[0][0]
 
         return ret_val
 
@@ -452,8 +449,6 @@ class DBUtils:
             Decimal: With average of requested query.
 
         """
-        conn = psycopg2.connect(self.__dsn)
-        curs = conn.cursor()
 
         if group != "food" and group != "moves":
             print "ERROR: Invalid type ({0}) of group requested!".format(group)
@@ -491,12 +486,10 @@ class DBUtils:
                     generation=%s AND
                     run_id IN %s;""".format(sel_str)
 
-        curs.execute(query_str, (generation, run_ids) )
+        with self.__getCursor() as curs:
+            curs.execute(query_str, (generation, run_ids) )
 
-        ret_val = curs.fetchall()[0][0]
-
-        curs.close()
-        conn.close()
+            ret_val = curs.fetchall()[0][0]
 
         return ret_val
 
@@ -514,26 +507,283 @@ class DBUtils:
         return self.getStatAverageRunIds(run_ids, generation, group, stat)
 
 
-    def getFirstRunId(self, net, gen, pop, trail=3, max_moves=325):
+    def getFirstRunId(self, net, gen, pop, trail=3, max_moves=325,
+        mutate_id=1, elite_count=3, p_mutate=0.2,
+        p_crossover=0.5, weight_min=-5.0, weight_max=5.0):
         conn = psycopg2.connect(self.__dsn)
         curs = conn.cursor()
 
-        curs.execute("""SELECT id
-        FROM run
-        WHERE networks_id=%s AND
-        generations=%s AND
-        population=%s AND
-        trails_id=%s AND
-        moves_limit=%s
-        LIMIT 1;""", (net, gen, pop, trail, max_moves))
+        with self.__getCursor() as curs:
+            curs.execute("""SELECT run.id
+                FROM run
+                INNER JOIN run_config
+                ON run.run_config_id = run_config.id
+                WHERE
+                run_config.networks_id = %s AND
+                run_config.trails_id = %s AND
+                run_config.mutate_id = %s AND
+                run_config.generations = %s AND
+                run_config.population = %s AND
+                run_config.moves_limit = %s AND
+                run_config.elite_count = %s AND
+                round(run_config.p_mutate::numeric, 4) = %s AND
+                round(run_config.p_crossover::numeric, 4) = %s AND
+                run_config.weight_min = %s AND
+                run_config.weight_max = %s
+                LIMIT 1;""", (
+                    net,
+                    trail,
+                    mutate_id,
+                    gen,
+                    pop,
+                    max_moves,
+                    elite_count,
+                    p_mutate,
+                    p_crossover,
+                    weight_min,
+                    weight_max
+            ))
 
-        ret_val = curs.fetchall()[0][0]
+            try:
+                ret_val = curs.fetchall()[0][0]
+            except IndexError:
+                # Means we found nothing matching.
+                # Clean up and print some debug information.
+                curs.close()
+                conn.close()
+
+                print "ERROR: Failed to find a match on query!"
+                print "net         = {0}".format(net)
+                print "trail       = {0}".format(trail)
+                print "mutate_id   = {0}".format(mutate_id)
+                print "generations = {0}".format(gen)
+                print "pop         = {0}".format(pop)
+                print "max_moves   = {0}".format(max_moves)
+                print "elite_count = {0}".format(elite_count)
+                print "p_mutate    = {0}".format(p_mutate)
+                print "p_crossover = {0}".format(p_crossover)
+                print "weight_min  = {0}".format(weight_min)
+                print "weight_max  = {0}".format(weight_max)
+
+                raise
+
 
         curs.close()
         conn.close()
 
         return ret_val
 
+
+    def tableListing(self,
+        page      = 1,
+        page_size = 20,
+        sort_col  = "RowNumber",
+        filters   = None):
+
+        # Verify that the sort column is a valid column to sort by.
+        valid_cols = ("id",
+            "networks_id",
+            "trails_id",
+            "mutate_id",
+            "generations",
+            "population",
+            "moves_limit",
+            "elite_count",
+            "p_mutate",
+            "p_crossover",
+            "weight_min",
+            "weight_max",
+            "RowNumber")
+
+        if sort_col not in valid_cols:
+            print "ERROR: An invalid sort column was specifed."
+            return (-1, None)
+
+        # Count the total number of results.
+        with self.__getCursor() as curs:
+            curs.execute("""SELECT COUNT(id)
+                  FROM   run_config
+                  WHERE  generations = %s""", (200,) )
+
+            row_count = int(curs.fetchall()[0][0])
+
+        # Build the base query string with the sort column plugged in.
+        query_str = """SELECT id, trails_id, networks_id, generations,
+            population, moves_limit, elite_count, mutate_id,
+            p_mutate, p_crossover, weight_min, weight_max
+        FROM    ( SELECT ROW_NUMBER()
+                    OVER ( ORDER BY id ) AS RowNumber, *
+                  FROM   run_config
+                  WHERE  generations = %s
+                ) AS RowConstrainedResult
+        WHERE   RowNumber >= %s
+            AND RowNumber < %s
+        ORDER BY {0}""".format(sort_col)
+
+        # Run the query and get the data table.
+        with self.__getCursor() as curs:
+            curs.execute(query_str, (
+                200,
+                (page - 1) * page_size ,
+                page * page_size)
+                )
+
+            run_config_l = curs.fetchall()
+
+        ret_val = []
+
+        # Now, add the run IDs matching the run IDs.
+        for curr_run_info in run_config_l:
+            with self.__getCursor() as curs:
+                curs.execute("""SELECT ARRAY(SELECT id
+                    FROM run
+                    WHERE run_config_id = %s);""", (curr_run_info[0], ))
+
+                result = curs.fetchall()[0]
+
+                ret_val.append( curr_run_info + tuple(result) )
+
+
+        return (row_count, ret_val)
+
+
+    def getRunsWithConfigID(self, config_id):
+        """ Takes a configuration id and returns all of the run_ids that
+        were ran with this configuration.
+
+        Returns:
+           list. A list of run_id (as int) that have same configuration_id.
+
+        """
+        with self.__getCursor() as curs:
+            curs.execute("""SELECT id
+            FROM run
+            WHERE run_config_id = %s;""",
+                (config_id, ))
+
+            ret_val = []
+
+            for record in curs:
+                ret_val.append(record[0])
+
+        return ret_val
+
+
+    def fetchConfigInfo(self, config_id):
+        """ Takes a config_id and returns a dictionary with the
+        parameters used on this run.
+
+        Returns:
+            dict. Of the configuration used on this run.
+
+        """
+
+        with self.__getCursor() as curs:
+            curs.execute("""SELECT
+                trails_id,
+                networks_id,
+                mutate_id,
+                generations,
+                population,
+                moves_limit,
+                elite_count,
+                p_mutate,
+                p_crossover,
+                weight_min,
+                weight_max
+                FROM run_config
+                WHERE id = %s;""", (config_id, ) )
+
+            result = curs.fetchall()[0]
+
+            curr_dict                    = {}
+
+            curr_dict["trails_id"]       = result[0]
+            curr_dict["networks_id"]     = result[1]
+            curr_dict["mutate_id"]       = result[2]
+            curr_dict["generations"]     = result[3]
+            curr_dict["population"]      = result[4]
+            curr_dict["moves_limit"]     = result[5]
+            curr_dict["elite_count"]     = result[6]
+            curr_dict["p_mutate"]        = result[7]
+            curr_dict["p_crossover"]     = result[8]
+            curr_dict["weight_min"]      = result[9]
+            curr_dict["weight_max"]      = result[10]
+
+
+        return curr_dict
+
+
+    def fetchConfigRunsInfo(self, config_id):
+        """ Generates a table with run_id, run_date, best food, and
+        best moves with a provided config_id. Returns the results a list
+        containing a dictionary of the items.
+
+        Returns:
+           list. A list containing dictionaries of the items above with
+           keys of id, run_date, food, moves.
+
+        """
+        with self.__getCursor() as curs:
+            curs.execute("""SELECT
+                run.id,
+                run.run_date,
+                MAX(generations.food_max),
+                MIN(moves_min)
+                FROM run
+                INNER JOIN generations
+                ON run.id = generations.run_id
+                WHERE run.id IN (
+                    SELECT id
+                    FROM run
+                    WHERE run_config_id = %s)
+                GROUP BY run.id
+                ORDER BY run.id;""",
+                (config_id, ))
+
+            ret_val = []
+
+            for record in curs:
+                temp_dict              = {}
+                temp_dict["id"]        = record[0]
+                temp_dict["run_date"]  = record[1]
+                temp_dict["food"]      = record[2]
+                temp_dict["moves"]     = record[3]
+
+                ret_val.append(temp_dict)
+
+        return ret_val
+
+    def getRunBest(self, run_ids):
+        """ Takes a set of run_ids and returns a dictionary with the
+        best food and best moves in a dictionary with run_id as key.
+
+        Returns:
+            dict. A dictionary with run_id as keys containing a dictionary
+                with keys "food" and "moves" for best (max, min),
+                respectively.
+
+        """
+        with self.__getCursor() as curs:
+            curs.execute("""SELECT
+                run_id,
+                MAX(generations.food_max),
+                MIN(moves_min)
+                FROM generations
+                WHERE run_id IN %s
+                GROUP BY run_id;""",
+                tuple(run_ids))
+
+            ret_val = {}
+
+            for record in curs:
+                temp_dict  = {}
+                temp_dict["food"]  = record[1]
+                temp_dict["moves"] = record[2]
+
+                ret_val[record[0]] = temp_dict
+
+        return ret_val
 
 
 

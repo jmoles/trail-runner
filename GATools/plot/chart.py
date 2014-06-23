@@ -22,7 +22,7 @@ class chart:
 
 
     def lineChart(self, run_id, ext="png", stat_group="food",
-        stat=None, group=False):
+        stat=None, group=False, title=True):
 
         if not self.__network_list_cache or not self.__trail_list_cache:
             self.__cacheInit()
@@ -117,7 +117,8 @@ class chart:
                         num_gens,
                         run_info[run_id]["population"]))
 
-                axis.set_title(plot_title)
+                if title:
+                    axis.set_title(plot_title)
 
         else:
             for curr_run in run_ids_l:
@@ -146,7 +147,8 @@ class chart:
                             num_gens,
                             run_info[run_id]["population"]))
 
-                    axis.set_title(plot_title)
+                    if title:
+                        axis.set_title(plot_title)
 
         # Determine the maximum type to show.
         if stat_group == "food":
@@ -174,6 +176,113 @@ class chart:
 
         return (self.__createImage(fig, ext), len(run_ids_l))
 
+
+    def lineChartByConfigId(self, config_id, ext="png", stat_group="food",
+        stat=None, title=True):
+        if not self.__network_list_cache or not self.__trail_list_cache:
+            self.__cacheInit()
+
+        if stat_group == "moves_stats" and stat == None:
+            stat=["left", "right", "forward", "none"]
+        elif stat == None:
+            stat=["min", "max", "avg"]
+
+        # Get the list of run_ids with this configuration.
+        run_ids_l = self.__pgdb.getRunsWithConfigID(config_id)
+
+        # Generate the figure and axes common to all of these.
+        fig = pyplot.Figure()
+        axis = fig.add_subplot(1,1,1)
+
+        # Get information on the run
+        run_info = self.__pgdb.fetchConfigInfo(config_id)
+
+        # Determine the maximum amount of food
+        if not self.__trails_cache.has_key(run_info["trails_id"]):
+            trail_grid, _, _ = self.__pgdb.getTrailData(
+                run_info["trails_id"])
+            self.__trails_cache[run_info["trails_id"]] = trail_grid
+        else:
+            trail_grid = self.__trails_cache[run_info["trails_id"]]
+
+        max_food = np.bincount(np.array(trail_grid.flatten())[0])[1]
+
+        # Find the network name, trail name, and number of generations.
+        net_name   = self.__network_list_cache[run_info["networks_id"]]
+        trail_name = self.__trail_list_cache[run_info["trails_id"]]
+        num_gens   = run_info["generations"]
+        max_moves  = np.array(run_info["moves_limit"])
+
+        # Take each run and now fetch data for each.
+        ids_search_l = []
+        for curr_id in run_ids_l:
+            if not self.__gen_data_cache.has_key(curr_id):
+                ids_search_l.append(curr_id)
+
+        if len(ids_search_l) > 0:
+            self.__gen_data_cache = dict(
+                self.__gen_data_cache.items() +
+                self.__pgdb.fetchRunGenerations(ids_search_l).items())
+
+        gens_data = self.__gen_data_cache
+
+        x = np.linspace(0, num_gens - 1, num=num_gens)
+
+        for curr_stat in stat:
+
+            data_set = np.zeros((num_gens))
+
+            for curr_gen in range(0, num_gens):
+                if stat_group == "moves_stats":
+                    curr_stat_group = "moves"
+                else:
+                    curr_stat_group = stat_group
+
+                this_gen = []
+                for curr_run in run_ids_l:
+                    this_gen.append(gens_data[curr_run][curr_gen]
+                        [curr_stat_group][curr_stat])
+
+                data_set[curr_gen] = np.mean(this_gen)
+
+            axis.plot(x, data_set, '-', label=curr_stat.title())
+
+            if title:
+                plot_title = (
+                    "Mean - {0} - {1} g{2}/p{3}".format(
+                        net_name,
+                        trail_name,
+                        num_gens,
+                        run_info["population"]))
+
+
+                axis.set_title(plot_title)
+
+        # Determine the maximum type to show.
+        if stat_group == "food":
+            axis.plot(x, np.repeat(np.array(max_food), num_gens), 'r--')
+            axis.axis((0, num_gens, 0, max_food + 5))
+            axis.set_ylabel("Food Consumed")
+            axis.set_xlabel("Generations")
+            axis.legend(loc="best")
+        elif stat_group == "moves":
+            axis.plot(x, np.repeat(
+                np.array(max_moves),
+                num_gens), 'r--')
+            axis.axis((0, num_gens, 0, max_moves + 5))
+            axis.set_ylabel("Moves Taken")
+            axis.set_xlabel("Generations")
+            axis.legend(loc="lower left")
+        elif stat_group == "moves_stats":
+            axis.axis((0, num_gens, 0, max_moves + 5))
+            axis.set_ylabel("Moves Taken")
+            axis.set_xlabel("Generations")
+            axis.legend(loc="upper left", ncol=2)
+
+
+        fig.set_facecolor('w')
+
+        return (self.__createImage(fig, ext), len(run_ids_l))
 
     def sweepChart(self, ext="png", stat_group="food",
         stat="max", sweep="dl_length", gp_group=0, net_group=0):
@@ -217,7 +326,8 @@ class chart:
             std_dev = []
 
             for curr_net in networks[net_group]:
-                curr_run_id = self.__pgdb.getFirstRunId(curr_net, gen, pop)
+                curr_run_id = self.__pgdb.getFirstRunId(curr_net, gen, pop,
+                    max_moves=max_moves)
                 y.append(self.__pgdb.getStatAverageLikeRunId(curr_run_id,
                     group=stat_group, stat=curr_stat, generation=gen - 1))
 
