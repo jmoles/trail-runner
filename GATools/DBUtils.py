@@ -188,36 +188,54 @@ class DBUtils:
 
         # See if this configuration exists in the run_configurations.
         # Add it to the table if not, if so, just use the config_id.
+        config_id = self.getRunConfigID(run_info)
 
-        run_id = self.getRunConfigID(run_info)
+        curs.execute("""
+            INSERT INTO run (id,
+                host_configs_id,
+                run_date,
+                runtime,
+                hostname,
+                debug,
+                run_config_id)
+            VALUES (
+            DEFAULT, %s, %s, %s, %s, %s, %s) RETURNING id;""", (
+            run_info["host_type_id"],
+            run_info["run_date"],
+            run_info["runtime"],
+            run_info["hostname"],
+            run_info["debug"],
+            config_id))
+
+        run_id = curs.fetchone()[0]
 
         for curr_gen in gen_info:
             curr_gen["run_id"] = run_id
 
-            curs.executemany("""
-                INSERT INTO generations (id, run_id, generation, runtime,
-                    food_max, food_min, food_avg, food_std,
-                    moves_max, moves_min, moves_avg, moves_std,
-                    moves_left, moves_right, moves_forward, moves_none,
-                    elite)
-                VALUES (
-                DEFAULT,
-                %(run_id)s,
-                %(gen)s,
-                %(runtime)s,
-                %(food_max)s,
-                %(food_min)s,
-                %(food_avg)s,
-                %(food_std)s,
-                %(moves_max)s,
-                %(moves_min)s,
-                %(moves_avg)s,
-                %(moves_std)s,
-                %(moves_left)s,
-                %(moves_right)s,
-                %(moves_forward)s,
-                %(moves_none)s,
-                %(elite)s); """, gen_info)
+        curs.executemany("""
+            INSERT INTO generations (id, run_id, generation, runtime,
+                food_max, food_min, food_avg, food_std,
+                moves_max, moves_min, moves_avg, moves_std,
+                moves_left, moves_right, moves_forward, moves_none,
+                elite)
+            VALUES (
+            DEFAULT,
+            %(run_id)s,
+            %(gen)s,
+            %(runtime)s,
+            %(food_max)s,
+            %(food_min)s,
+            %(food_avg)s,
+            %(food_std)s,
+            %(moves_max)s,
+            %(moves_min)s,
+            %(moves_avg)s,
+            %(moves_std)s,
+            %(moves_left)s,
+            %(moves_right)s,
+            %(moves_forward)s,
+            %(moves_none)s,
+            %(elite)s); """, gen_info)
 
         conn.commit()
 
