@@ -228,8 +228,7 @@ def main():
         mstats.register("std", np.std)
 
         # Record the start of this run.
-        if not args.disable_db:
-            log_time = datetime.datetime.now()
+        log_time = datetime.datetime.now()
 
         # Begin the generational process
         for gen in range(1, args.generations + 1):
