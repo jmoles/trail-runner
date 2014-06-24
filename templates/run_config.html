@@ -1,144 +1,225 @@
-<!DOCTYPE html>
-<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
-<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
-<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
-    <head>
-        <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-        <title>Run Configuration {{ config_id }} </title>
-        <meta name="description" content="">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+{% extends "base.html" %}
 
-        <link rel="stylesheet" href="{{
-          url_for('static', filename='css/bootstrap.min.css') }}">
-        <style>
-            body {
-                padding-top: 50px;
-                padding-bottom: 20px;
-            }
-        </style>
-        <link rel="stylesheet" href="{{
-          url_for('static', filename='css/bootstrap-theme.min.css') }}">
-        <link rel="stylesheet" href="{{
-          url_for('static', filename='css/main.css') }}">
+{% block title %}
+Run Configuration {{ run_id }}
+{% endblock %}
 
-        <link rel="shortcut icon" href="{{url_for('static', filename='favicon.ico') }}" />
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/jquery.tablesorter.pager.css') }}">
+{% endblock %}
 
-        <script src="{{
-          url_for('static', filename='js/vendor/modernizr-2.6.2-respond-1.1.0.min.js') }}"></script>
 
-          		<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+{% block navbar %}
+<ol class="breadcrumb navbar-fixed-top" role="navigation">
+    <li><a href="{{ url_for('index') }}">Home</a></li>
+    <li class="active">Run Configuration {{ config_id }}</li>
+</ol>
+{% endblock %}
 
-    </head>
+{% block header_text %}
+Run Configuration {{ config_id }} <small>Used for {{ num_runs }} runs</small>
+{% endblock %}
 
-    <body>
-        <!--[if lt IE 7]>
-            <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
-        <![endif]-->
-    <ol class="breadcrumb navbar-fixed-top" role="navigation">
-      <li><a href="{{ url_for('index') }}">Home</a></li>
-      <li class="active">Run Configuration {{ config_id }}</li>
-    </ol>
-
-    <div class="page-header">
-    	<h1>Run Configuration {{ config_id }}</h1>
+{% block content %}
+<h2>Configuration</h2>
+<div class="row">
+    <div class="col-md-6">
+        <dl class="dl-horizontal">
+            <dt>Network Name</dt>
+                <dd><a href="{{ url_for('network_by_id', network_id=run_config['networks_id']) }}">{{ network_name }}</a></dd>
+            <dt>Trail Name</dt>
+                <dd><a href="{{ url_for('trail_by_id', trail_id=run_config['trails_id']) }}">{{ trail_name }}</a></dd>
+            <dt>Mutate Type</dt>
+                <dd><a href="http://deap.gel.ulaval.ca/doc/dev/api/tools.html#deap.tools.{{ mutate_name }}" target="_blank">{{ mutate_name }}</a></dd>
+            <dt>Generations</dt>
+                <dd>{{ run_config["generations"] }}</dd>
+            <dt>Population</dt>
+                <dd>{{ run_config["population"] }}</dd>
+        </dl>
     </div>
+    <div class="col-md-6">
+        <dl class="dl-horizontal">
+            <dt>Moves Limit</dt>
+                <dd>{{ run_config["moves_limit"] }}</dd>
+            <dt>Elite/Hall of Fame</dt>
+                <dd>{{ run_config["elite_count"] }}</dd>
+            <dt>P(Mutate)</dt>
+                <dd>{{ run_config["p_mutate"] }}</dd>
+            <dt>P(Crossover)</dt>
+                <dd>{{ run_config["p_crossover"] }}</dd>
+            <dt>Weight</dt>
+                <dd>[{{ run_config["weight_min"] }}, {{ run_config["weight_max"] }}]</dd>
+        </dl>
+    </div>
+</div>
 
-    <div class="container-fluid">
-    	<div class="row">
-    		<h2>Configuration</h2>
-	    	<div class="col-md-6">
-	    		<dl class="dl-horizontal">
-	    			<dt>Network Name</dt>
-	    				<dd><a href="{{ url_for('network_by_id', network_id=run_config['networks_id']) }}">{{ network_name }}</a></dd>
-	    			<dt>Trail Name</dt>
-	    				<dd><a href="{{ url_for('trail_by_id', trail_id=run_config['trails_id']) }}">{{ trail_name }}</a></dd>
-	    			<dt>Mutate Type</dt>
-	    				<dd><a href="http://deap.gel.ulaval.ca/doc/dev/api/tools.html#deap.tools.{{ mutate_name }}" target="_blank">{{ mutate_name }}</a></dd>
-	    			<dt>Generations</dt>
-	    				<dd>{{ run_config["generations"] }}</dd>
-	    			<dt>Population</dt>
-	    				<dd>{{ run_config["population"] }}</dd>
-	    		</dl>
-	    	</div>
-	    	<div class="col-md-6">
-	    		<dl class="dl-horizontal">
-	    			<dt>Moves Limit</dt>
-	    				<dd>{{ run_config["moves_limit"] }}</dd>
-	    			<dt>Elite/Hall of Fame</dt>
-	    				<dd>{{ run_config["elite_count"] }}</dd>
-	    			<dt>P(Mutate)</dt>
-	    				<dd>{{ run_config["p_mutate"] }}</dd>
-	    			<dt>P(Crossover)</dt>
-	    				<dd>{{ run_config["p_crossover"] }}</dd>
-	    			<dt>Weight</dt>
-	    				<dd>[{{ run_config["weight_min"] }}, {{ run_config["weight_max"] }}]</dd>
-	    		</dl>
-	    	</div>
-    	</div>
+<h2>Charts</h2>
+<div class="row">
+    {% for idx in range(group_images_l|count) %}
+    <div class="col-md-6" id="box{{idx}}">
 
-    	<div class="row">
-	    	<h2>Charts for {{ num_runs }} Runs</h2>
-			{% for idx in range(group_images_l|count) %}
-			<div class="col-md-4" id="box{{idx}}">
-				
-				<div id="image{{idx}}">
-					<h3>{{ group_images_l[idx]["title"] }}</h3>
-					<img src="data:image/svg+xml;base64,{{ group_images_l[idx]["data"] }}" class="img-responsive" />
-				</div>
+        <div id="image{{idx}}">
+            <h3>{{ group_images_l[idx]["title"] }}</h3>
+            <img src="data:image/svg+xml;base64,{{ group_images_l[idx]["data"] }}" class="img-responsive" />
+        </div>
 
-				<div class="row text-center">
-					<button type="button" class="btn btn-default"><a href="{{ group_images_l[idx]["pdf"] }}">Download PDF</a></button>
-					<button type="button" class="btn btn-default"><a href="{{ group_images_l[idx]["eps"] }}">Download EPS</a></button>
-					<button type="button" class="btn btn-default"><a href="{{ group_images_l[idx]["jpg"] }}">Download JPG</a></button>
-					<button type="button" class="btn btn-default"><a href="{{ group_images_l[idx]["png"] }}">Download PNG</a></button>
-				</div>
-			</div>
-			{% endfor %}
-		</div><!-- /row -->
+        <div class="text-center">
+            <button type="button" class="btn btn-default"><a href="{{ group_images_l[idx]["pdf"] }}">Download PDF</a></button>
+            <button type="button" class="btn btn-default"><a href="{{ group_images_l[idx]["eps"] }}">Download EPS</a></button>
+            <button type="button" class="btn btn-default"><a href="{{ group_images_l[idx]["jpg"] }}">Download JPG</a></button>
+            <button type="button" class="btn btn-default"><a href="{{ group_images_l[idx]["png"] }}">Download PNG</a></button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
 
-		<div class="row">
-			<h2>Runs with This Configuration</h2>
-			<div class="col-md-12">
-				<table class="table table-striped">
-				    <tr>
-				        <th>Run ID</th>
-				        <th>Run Date</th>
-				        <th>Best Food</th>
-				        <th>Best Moves</th>
-				    </tr>
-				    {% for curr_line in table_data %}
-				    <tr>
-				        <td><a href="{{ url_for('plot_by_run_id', run_id=curr_line['id']) }}">{{ curr_line["id"] }}</a></td>
-				        <td>{{ curr_line["run_date"] }}</td>
-				        <td>{{ curr_line["food"] }}</td>
-				        <td>{{ curr_line["moves"] }}</td>
-				    </tr>
-				    {% endfor %}
+<h2>Runs with This Configuration</h2>
+<table class="tablesorter table table-striped">
+    <thead>
+        <tr role="row">
+            <th>Run ID</th>
+            <th>Run Date</th>
+            <th>Best Food</th>
+            <th>Best Moves</th>
+        </tr>
+    </thead>
+    <tfoot>
+        <tr>
+            <th>Run ID</th>
+            <th>Run Date</th>
+            <th>Best Food</th>
+            <th>Best Moves</th>
+        </tr>
+        <tr>
+            <th colspan="4" class="ts-pager" data-column"0">
+                <button type="button" class="btn first">
+                    <span class="glyphicon glyphicon-step-backward"></span>
+                </button>
+                <button type="button" class="btn prev">
+                    <span class="glyphicon glyphicon-backward"></span>
+                </button>
+                <span class="pagedisplay"></span>
+                <button type="button" class="btn next">
+                    <span class="glyphicon glyphicon-forward"></span>
+                </button>
+                <button type="button" class="btn last">
+                    <span class="glyphicon glyphicon-step-forward"></span>
+                </button>
+                <select class="pagesize input-mini" title="Select page size">
+                    <option selected="selected" value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="30">30</option>
+                    <option value="40">40</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <select class="pagenum input-mini" title="Select page number"></select>
+            </th>
+        </tr>
+    </tfoot>
+    <tbody>
+        {% for curr_line in table_data %}
+        {% if curr_line["debug"] %}
+        <tr class="danger">
+        {% else %}
+        <tr>
+        {% endif %}
+            <td><a href="{{ url_for('plot_by_run_id', run_id=curr_line['id']) }}">{{ curr_line["id"] }}</a></td>
+            <td>{{ curr_line["run_date"] }}</td>
+            <td>{{ curr_line["food"] }}</td>
+            <td>{{ curr_line["moves"] }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+</table>
 
-				</table>
-			</div>
-		</div><!-- /row -->
 
-    </div><!-- /container --> 
+{% endblock %}
 
-    <footer>
-		<div class="container-fluid text-center">
-			Generated in {{ time_sec }} seconds.
-		</div> <!-- /container --> 
-    </footer>
+{% block footer_text %}
+    Generated in {{ time_sec }} seconds.
+{% endblock %}
 
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-        <script>window.jQuery || document.write('<script src="{{
-          url_for('static', filename='js/vendor/jquery-1.11.0.min.js') }}"><\/script>')</script>
+{% block footer %}
+    {{ super() }}
+<script src="{{
+    url_for('static', filename='js/vendor/jquery.tablesorter.min.js') }}"></script>
+<script src="{{
+    url_for('static', filename='js/vendor/jquery.tablesorter.widgets.min.js') }}"></script>
+<script src="{{
+    url_for('static', filename='js/vendor/jquery.tablesorter.pager.min.js') }}"></script>
 
-        <script src="{{
-          url_for('static', filename='js/vendor/bootstrap.min.js') }}"></script>
+<script id="js">
+$(function() {
 
-        <script src="{{
-          url_for('static', filename='js/plugins.js') }}"></script>
-        <script src="{{
-          url_for('static', filename='js/main.js') }}"></script>
-    </body>
-</html>
+  $.extend($.tablesorter.themes.bootstrap, {
+    // these classes are added to the table. To see other table classes available,
+    // look here: http://twitter.github.com/bootstrap/base-css.html#tables
+    table      : 'table',
+    caption    : 'caption',
+    header     : 'bootstrap-header', // give the header a gradient background
+    footerRow  : '',
+    footerCells: '',
+    icons      : '', // add "icon-white" to make them white; this icon class is added to the <i> in the header
+    sortNone   : 'bootstrap-icon-unsorted',
+    sortAsc    : 'icon-chevron-up glyphicon glyphicon-chevron-up',     // includes classes for Bootstrap v2 & v3
+    sortDesc   : 'icon-chevron-down glyphicon glyphicon-chevron-down', // includes classes for Bootstrap v2 & v3
+    active     : '', // applied when column is sorted
+    hover      : '', // use custom css here - bootstrap class may not override it
+    filterRow  : '', // filter row class
+    even       : '', // odd row zebra striping
+    odd        : ''  // even row zebra striping
+  });
+
+  // call the tablesorter plugin and apply the uitheme widget
+  $("table").tablesorter({
+    // this will apply the bootstrap theme if "uitheme" widget is included
+    // the widgetOptions.uitheme is no longer required to be set
+    theme : "bootstrap",
+
+    widthFixed: true,
+
+    headerTemplate : '{content} {icon}', // new in v2.7. Needed to add the bootstrap icon!
+
+    // widget code contained in the jquery.tablesorter.widgets.js file
+    // use the zebra stripe widget if you plan on hiding any rows (filter widget)
+    widgets : [ "uitheme", "zebra" ],
+
+    widgetOptions : {
+      // using the default zebra striping class name, so it actually isn't included in the theme variable above
+      // this is ONLY needed for bootstrap theming if you are using the filter widget, because rows are hidden
+      zebra : ["even", "odd"],
+
+      // reset filters button
+      filter_reset : ".reset"
+
+      // set the uitheme widget to use the bootstrap theme class names
+      // this is no longer required, if theme is set
+      // ,uitheme : "bootstrap"
+
+    },
+
+    sortList : [[0,0]]
+  })
+  .tablesorterPager({
+
+    // target the pager markup - see the HTML block below
+    container: $(".ts-pager"),
+
+    // target the pager page select dropdown - choose a page
+    cssGoto  : ".pagenum",
+
+    // remove rows from the table to speed up the sort of large tables.
+    // setting this to false, only hides the non-visible rows; needed if you plan to add/remove rows with the pager enabled.
+    removeRows: false,
+
+    // output string - default is '{page}/{totalPages}';
+    // possible variables: {page}, {totalPages}, {filteredPages}, {startRow}, {endRow}, {filteredRows} and {totalRows}
+    output: '{startRow} - {endRow} / {filteredRows} ({totalRows})'
+
+  });
+
+});
+</script>
+{% endblock %}

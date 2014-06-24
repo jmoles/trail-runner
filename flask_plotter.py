@@ -45,8 +45,7 @@ def index():
 
     num_rows, table_data = pgdb.tableListing(
         page=page,
-        page_size=rows,
-        filters=None)
+        page_size=rows)
     return render_template("home.html",
         curr_page=page,
         page_size=rows,
@@ -131,6 +130,8 @@ def config_by_id(config_id):
     mutate_name  = pgdb.getMutates()[config_info["mutate_id"]]
 
     table_data   = pgdb.fetchConfigRunsInfo(config_id)
+    for row in table_data:
+        row["run_date"] = row["run_date"].strftime("%c")
 
     finish_time_s = str((datetime.datetime.now() - start).total_seconds())
 
@@ -148,11 +149,11 @@ def config_by_id(config_id):
 
 @app.route('/trail/<int:trail_id>')
 def trail_by_id(trail_id):
-    pass
+    return render_template('404.html'), 404
 
 @app.route('/network/<int:network_id>')
 def network_by_id(network_id):
-    pass
+    return render_template('404.html'), 404
 
 @app.route('/run/<int:run_id>')
 def plot_by_run_id(run_id):

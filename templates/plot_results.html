@@ -1,133 +1,89 @@
-<!DOCTYPE html>
-<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
-<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
-<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
-    <head>
-        <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-        <title>Plots for Run ID {{ run_id }} </title>
-        <meta name="description" content="">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+{% extends "base.html" %}
+{% block title %}
+Simulation Run {{ run_id }}
+{% endblock %}
 
-        <link rel="stylesheet" href="{{
-          url_for('static', filename='css/bootstrap.min.css') }}">
-        <style>
-            body {
-                padding-top: 50px;
-                padding-bottom: 20px;
-            }
-        </style>
-        <link rel="stylesheet" href="{{
-          url_for('static', filename='css/bootstrap-theme.min.css') }}">
-        <link rel="stylesheet" href="{{
-          url_for('static', filename='css/main.css') }}">
-
-        <link rel="shortcut icon" href="{{url_for('static', filename='favicon.ico') }}" />
-
-        <script src="{{
-          url_for('static', filename='js/vendor/modernizr-2.6.2-respond-1.1.0.min.js') }}"></script>
-
-          		<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
-
-    </head>
-
-    <body>
-        <!--[if lt IE 7]>
-            <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
-        <![endif]-->
+{% block navbar %}
     <ol class="breadcrumb navbar-fixed-top" role="navigation">
       <li><a href="{{ url_for('index') }}">Home</a></li>
       <li><a href="{{ url_for('config_by_id', config_id=run_info['run_config_id']) }}">Run Configuration {{ run_info["run_config_id"] }}</a></li>
-      <li class="active">Run ID {{ run_id }}</li>
+      <li class="active">Simulation Run {{ run_id }}</li>
     </ol>
+{% endblock %}
 
-    <div class="page-header">
-    	<h1>Run ID {{ run_id }}</h1>
+{% block header_text %}
+Simulation Run {{ run_id }}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <h2>Information</h2>
+    <div class="col-md-4">
+        <dl class="dl-horizontal">
+            <dt>Date</dt>
+                <dd>{{ run_info["run_date"] }}</dd>
+            <dt>Time</dt>
+                <dd>{{ run_info["runtime"] }}</dd>
+            <dt>Host</dt>
+                <dd>{{ run_info["hostname"] }}</dd>
+            <dt>Debug</dt>
+                <dd>{{ run_info["debug"] }}</dd>
+            <dt>Run Configuration</dt>
+                <dd><a href="{{ url_for('config_by_id', config_id=run_info['run_config_id']) }}">{{ run_info["run_config_id"] }}</a></dd>
+        </dl>
     </div>
+    <div class="col-md-4">
+        <dl class="dl-horizontal">
+            <dt>Network Name</dt>
+                <dd><a href="{{ url_for('network_by_id', network_id=run_info['networks_id']) }}">{{ network_name }}</a></dd>
+            <dt>Trail Name</dt>
+                <dd><a href="{{ url_for('trail_by_id', trail_id=run_info['trails_id']) }}">{{ trail_name }}</a></dd>
+            <dt>Mutate Type</dt>
+                <dd><a href="http://deap.gel.ulaval.ca/doc/dev/api/tools.html#deap.tools.{{ mutate_name }}" target="_blank">{{ mutate_name }}</a></dd>
+            <dt>Generations</dt>
+                <dd>{{ run_info["generations"] }}</dd>
+            <dt>Population</dt>
+                <dd>{{ run_info["population"] }}</dd>
+        </dl>
+    </div>
+    <div class="col-md-4">
+        <dl class="dl-horizontal">
+            <dt>Moves Limit</dt>
+                <dd>{{ run_info["moves_limit"] }}</dd>
+            <dt>Elite/Hall of Fame</dt>
+                <dd>{{ run_info["elite_count"] }}</dd>
+            <dt>P(Mutate)</dt>
+                <dd>{{ run_info["p_mutate"] }}</dd>
+            <dt>P(Crossover)</dt>
+                <dd>{{ run_info["p_crossover"] }}</dd>
+            <dt>Weight</dt>
+                <dd>[{{ run_info["weight_min"] }}, {{ run_info["weight_max"] }}]</dd>
+        </dl>
+    </div>
+</div>
 
-    <div class="container-fluid">
-    	<div class="row">
-    		<h2>Information</h2>
-	    	<div class="col-md-4">
-	    		<dl class="dl-horizontal">
-	    			<dt>Date</dt>
-	    				<dd>{{ run_info["run_date"] }}</dd>
-	    			<dt>Time</dt>
-	    				<dd>{{ run_info["runtime"] }}</dd>
-	    			<dt>Host</dt>
-	    				<dd>{{ run_info["hostname"] }}</dd>
-	    			<dt>Debug</dt>
-	    				<dd>{{ run_info["debug"] }}</dd>
-	    			<dt>Run Configuration</dt>
-	    				<dd><a href="{{ url_for('config_by_id', config_id=run_info['run_config_id']) }}">{{ run_info["run_config_id"] }}</a></dd>
-	    		</dl>
-	    	</div>
-	    	<div class="col-md-4">
-	    		<dl class="dl-horizontal">
-	    			<dt>Network Name</dt>
-	    				<dd><a href="{{ url_for('network_by_id', network_id=run_info['networks_id']) }}">{{ network_name }}</a></dd>
-	    			<dt>Trail Name</dt>
-	    				<dd><a href="{{ url_for('trail_by_id', trail_id=run_info['trails_id']) }}">{{ trail_name }}</a></dd>
-	    			<dt>Mutate Type</dt>
-	    				<dd><a href="http://deap.gel.ulaval.ca/doc/dev/api/tools.html#deap.tools.{{ mutate_name }}" target="_blank">{{ mutate_name }}</a></dd>
-	    			<dt>Generations</dt>
-	    				<dd>{{ run_info["generations"] }}</dd>
-	    			<dt>Population</dt>
-	    				<dd>{{ run_info["population"] }}</dd>
-	    		</dl>
-	    	</div>
-	    	<div class="col-md-4">
-	    		<dl class="dl-horizontal">
-	    			<dt>Moves Limit</dt>
-	    				<dd>{{ run_info["moves_limit"] }}</dd>
-	    			<dt>Elite/Hall of Fame</dt>
-	    				<dd>{{ run_info["elite_count"] }}</dd>
-	    			<dt>P(Mutate)</dt>
-	    				<dd>{{ run_info["p_mutate"] }}</dd>
-	    			<dt>P(Crossover)</dt>
-	    				<dd>{{ run_info["p_crossover"] }}</dd>
-	    			<dt>Weight</dt>
-	    				<dd>[{{ run_info["weight_min"] }}, {{ run_info["weight_max"] }}]</dd>
-	    		</dl>
-	    	</div>
-    	</div>
+<h2>Charts</h2>
+<div class="row">
+    {% for idx in range(images_l|count) %}
+        <div class="col-md-6">
+            <div id="image{{idx}}">
+                <h3>{{ images_l[idx]["title"] }}</h3>
+                <img src="data:image/svg+xml;base64,{{ images_l[idx]["data"] }}" class="img-responsive" />
+            </div>
 
-    	<h2>Charts</h2>
-		{% for idx in range(images_l|count) %}
+            <div class="row text-center">
+                <button type="button" class="btn btn-default"><a href="{{ images_l[idx]["pdf"] }}">Download PDF</a></button>
+                <button type="button" class="btn btn-default"><a href="{{ images_l[idx]["eps"] }}">Download EPS</a></button>
+                <button type="button" class="btn btn-default"><a href="{{ images_l[idx]["jpg"] }}">Download JPG</a></button>
+                <button type="button" class="btn btn-default"><a href="{{ images_l[idx]["png"] }}">Download PNG</a></button>
+            </div>
+        </div>
+    {% endfor %}
+</div>
 
-		<div class="col-md-4" id="box{{idx}}">
-			
-			<div id="image{{idx}}">
-				<h3>{{ images_l[idx]["title"] }}</h3>
-				<img src="data:image/svg+xml;base64,{{ images_l[idx]["data"] }}" class="img-responsive" />
-			</div>
+{% endblock %}
 
-			<div class="row text-center">
-				<button type="button" class="btn btn-default"><a href="{{ images_l[idx]["pdf"] }}">Download PDF</a></button>
-				<button type="button" class="btn btn-default"><a href="{{ images_l[idx]["eps"] }}">Download EPS</a></button>
-				<button type="button" class="btn btn-default"><a href="{{ images_l[idx]["jpg"] }}">Download JPG</a></button>
-				<button type="button" class="btn btn-default"><a href="{{ images_l[idx]["png"] }}">Download PNG</a></button>
-			</div>
-		</div>
 
-		{% endfor %}
-    </div><!-- /container --> 
-
-	<footer>
-		Generated in {{ time_sec }} seconds.
-	</footer>
-
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-        <script>window.jQuery || document.write('<script src="{{
-          url_for('static', filename='js/vendor/jquery-1.11.0.min.js') }}"><\/script>')</script>
-
-        <script src="{{
-          url_for('static', filename='js/vendor/bootstrap.min.js') }}"></script>
-
-        <script src="{{
-          url_for('static', filename='js/plugins.js') }}"></script>
-        <script src="{{
-          url_for('static', filename='js/main.js') }}"></script>
-    </body>
-</html>
+{% block footer_text %}
+    Generated in {{ time_sec }} seconds.
+{% endblock %}

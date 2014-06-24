@@ -596,7 +596,8 @@ class DBUtils:
         page      = 1,
         page_size = 20,
         sort_col  = "RowNumber",
-        filters   = None):
+        filters   = {"generations" : 200,
+                     "moves_limit" : 325}):
 
         # Verify that the sort column is a valid column to sort by.
         valid_cols = ("id",
@@ -617,6 +618,22 @@ class DBUtils:
             print "ERROR: An invalid sort column was specifed."
             return (-1, None)
 
+        # Build the WHERE part of the query based off filters.
+        start_filter = True
+        filter_str   = ""
+        filter_val   = []
+
+        for curr_key, curr_val in filters.iteritems():
+            if start_filter:
+                filter_str   += "WHERE "
+                start_filter =  False
+            else:
+                filter_str   += "AND "
+
+            if curr_key in valid_cols:
+                filter_str   += "{0} = %s\n".format(curr_key)
+                filter_val.append(curr_val)
+
         # Count the total number of results.
         with self.__getCursor() as curs:
             curs.execute("""SELECT COUNT(id)
@@ -632,19 +649,21 @@ class DBUtils:
         FROM    ( SELECT ROW_NUMBER()
                     OVER ( ORDER BY id ) AS RowNumber, *
                   FROM   run_config
-                  WHERE  generations = %s
+                  {1}
                 ) AS RowConstrainedResult
         WHERE   RowNumber >= %s
             AND RowNumber < %s
-        ORDER BY {0}""".format(sort_col)
+        ORDER BY {0}""".format(sort_col, filter_str)
+
+        print query_str
+
+        # Append the page number information.
+        filter_val.append((page - 1) * page_size)
+        filter_val.append(page * page_size)
 
         # Run the query and get the data table.
         with self.__getCursor() as curs:
-            curs.execute(query_str, (
-                200,
-                (page - 1) * page_size ,
-                page * page_size)
-                )
+            curs.execute(query_str, filter_val)
 
             run_config_l = curs.fetchall()
 
@@ -652,14 +671,9 @@ class DBUtils:
 
         # Now, add the run IDs matching the run IDs.
         for curr_run_info in run_config_l:
-            with self.__getCursor() as curs:
-                curs.execute("""SELECT ARRAY(SELECT id
-                    FROM run
-                    WHERE run_config_id = %s);""", (curr_run_info[0], ))
+            result = self.getRunsWithConfigID(curr_run_info[0])
 
-                result = curs.fetchall()[0]
-
-                ret_val.append( curr_run_info + tuple(result) )
+            ret_val.append( curr_run_info + tuple(result) )
 
 
         return (row_count, ret_val)
@@ -673,16 +687,14 @@ class DBUtils:
            list. A list of run_id (as int) that have same configuration_id.
 
         """
+        query_str = """SELECT ARRAY(SELECT id
+        FROM run
+        WHERE run_config_id = %s);"""
+
         with self.__getCursor() as curs:
-            curs.execute("""SELECT id
-            FROM run
-            WHERE run_config_id = %s;""",
-                (config_id, ))
+            curs.execute(query_str, (config_id, ))
 
-            ret_val = []
-
-            for record in curs:
-                ret_val.append(record[0])
+            ret_val = curs.fetchall()[0][0]
 
         return ret_val
 
@@ -746,6 +758,7 @@ class DBUtils:
             curs.execute("""SELECT
                 run.id,
                 run.run_date,
+                run.debug,
                 MAX(generations.food_max),
                 MIN(moves_min)
                 FROM run
@@ -765,8 +778,9 @@ class DBUtils:
                 temp_dict              = {}
                 temp_dict["id"]        = record[0]
                 temp_dict["run_date"]  = record[1]
-                temp_dict["food"]      = record[2]
-                temp_dict["moves"]     = record[3]
+                temp_dict["debug"]     = record[2]
+                temp_dict["food"]      = record[3]
+                temp_dict["moves"]     = record[4]
 
                 ret_val.append(temp_dict)
 
