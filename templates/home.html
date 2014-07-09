@@ -1,131 +1,220 @@
-<!DOCTYPE html>
-<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
-<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
-<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
-    <head>
-        <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-        <title></title>
-        <meta name="description" content="">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+{% extends "base.html" %}
 
-        <link rel="stylesheet" href="{{
-          url_for('static', filename='css/bootstrap.min.css') }}">
-        <style>
-            body {
-                padding-top: 50px;
-                padding-bottom: 20px;
-            }
-        </style>
-        <link rel="stylesheet" href="{{
-          url_for('static', filename='css/bootstrap-theme.min.css') }}">
-        <link rel="stylesheet" href="{{
-          url_for('static', filename='css/main.css') }}">
+{% block title %}
+Home
+{% endblock %}
 
-        <link rel="shortcut icon" href="{{url_for('static', filename='favicon.ico') }}" />
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/jquery.tablesorter.pager.css') }}">
+{% endblock %}
 
-        <script src="{{
-          url_for('static', filename='js/vendor/modernizr-2.6.2-respond-1.1.0.min.js') }}"></script>
-    </head>
 
-    <body>
-        <!--[if lt IE 7]>
-            <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
-        <![endif]-->
-    <ol class="breadcrumb navbar-fixed-top" role="navigation">
-      <li class="active">Home</li>
-    </ol>
+{% block navbar %}
+<ol class="breadcrumb navbar-fixed-top" role="navigation">
+    <li class="active">Home</li>
+</ol>
+{% endblock %}
 
-    {% if (max_page > 1) %}
-    <div class="container-fluid text-center">
-        <ul class="pagination">
-            {% if (curr_page > 1) %}
-                <li><a href="{{ url_for('index', page=(curr_page - 1), rows=page_size) }}">&laquo;</a></li>
-            {% else %}
-                <li class="disabled"><a href="#">&laquo;</a></li>
-            {% endif %}
+{% block header_text %}
+Home
+{% endblock %}
 
-            {% for page_iter in range(1, max_page + 1, 1) %}
-                {% if (page_iter == curr_page) %}
-                    <li class="active"><a href="#">{{ page_iter }}<span class="sr-only">(current)</span></a></li>
-                {% else %}
-                    <li><a href="{{ url_for('index', page=page_iter, rows=page_size) }}">{{ page_iter }}</a></li>
-                {% endif %}
+{% block content %}
+<h2>Filters</h2>
+<div class="row">
+
+</div>
+
+<h2>Runs with This Configuration</h2>
+<table class="tablesorter table table-striped">
+    <colgroup>
+        <col width="1*" />
+        <col width="1*" />
+        <col width="1*" />
+        <col width="1*" />
+        <col width="1*" />
+        <col width="1*" />
+        <col width="1*" />
+        <col width="1*" />
+        <col width="1*" />
+        <col width="1*" />
+        <col width="1*" />
+        <col width="1*" />
+        <col width="2*" />
+    </colgroup>
+    <thead>
+        <tr>
+            <th>Trail</th>
+            <th>Network</th>
+            <th>Gen</th>
+            <th>Pop</th>
+            <th>Move Lim.</th>
+            <th>Elite</th>
+            <th>Mutate Type</th>
+            <th>P(mut)</th>
+            <th>P(cross)</th>
+            <th>Min. Weight</th>
+            <th>Max. Weight</th>
+            <th>Run Count</th>
+            <th>Run IDs</th>
+        </tr>
+    </thead>
+    <tfoot>
+        <tr>
+            <th>Trail</th>
+            <th>Network</th>
+            <th>Gen</th>
+            <th>Pop</th>
+            <th>Move Lim.</th>
+            <th>Elite</th>
+            <th>Mutate Type</th>
+            <th>P(mut)</th>
+            <th>P(cross)</th>
+            <th>Min. Weight</th>
+            <th>Max. Weight</th>
+            <th>Run Count</th>
+            <th>Run IDs</th>
+        </tr>
+        <tr>
+            <th colspan="13" class="ts-pager" data-column"0">
+                <button type="button" class="btn first">
+                    <span class="glyphicon glyphicon-step-backward"></span>
+                </button>
+                <button type="button" class="btn prev">
+                    <span class="glyphicon glyphicon-backward"></span>
+                </button>
+                <span class="pagedisplay"></span>
+                <button type="button" class="btn next">
+                    <span class="glyphicon glyphicon-forward"></span>
+                </button>
+                <button type="button" class="btn last">
+                    <span class="glyphicon glyphicon-step-forward"></span>
+                </button>
+                <select class="pagesize input-mini" title="Select page size">
+                    <option selected="selected" value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="30">30</option>
+                    <option value="40">40</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <select class="pagenum input-mini" title="Select page number"></select>
+            </th>
+        </tr>
+    </tfoot>
+    <tbody>
+    {% for curr_line in table_data %}
+    <tr>
+
+            <td>{{ curr_line[1]  }}</td>
+            <td>{{ curr_line[2]  }}</td>
+            <td>{{ curr_line[3]  }}</td>
+            <td>{{ curr_line[4]  }}</td>
+            <td>{{ curr_line[5]  }}</td>
+            <td>{{ curr_line[6]  }}</td>
+            <td>{{ curr_line[7]  }}</td>
+            <td>{{ curr_line[8]  }}</td>
+            <td>{{ curr_line[9]  }}</td>
+            <td>{{ curr_line[10]  }}</td>
+            <td>{{ curr_line[11]  }}</td>
+            <td>{{ curr_line[12]|length  }}</td>
+            <td>
+            {% for curr_run_id in curr_line[12] %}
+                <a href="{{ url_for('plot_by_run_id', run_id=curr_run_id) }}">{{ curr_run_id }}</a>&nbsp;
             {% endfor %}
+            </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
 
-            {% if (curr_page < max_page) %}
-                <li><a href="{{ url_for('index', page=(curr_page + 1), rows=page_size) }}">&raquo;</a></li>
-            {% else %}
-                <li class="disabled"><a href="#">&raquo;</a></li>
-            {% endif %}
-        </ul>
-    </div>
-    {% endif %}
 
-    <div class="container">
-        <table class="table">
-            <tr>
-                <th>Trail</th>
-                <th>Network</th>
-                <th>Generations</th>
-                <th>Population</th>
-                <th>Move Limit</th>
-                <th>Elite (HoF) Size</th>
-                <th>Mutate Type</th>
-                <th>P(mutation)</th>
-                <th>P(crossover)</th>
-                <th>Minimum Weight</th>
-                <th>Maximum Weight</th>
-                <th>Run Count</th>
-                <th>Run IDs</th>
-            </tr>
-            {% for curr_line in table_data %}
-            <tr>
-                
-                    <td>{{ curr_line[1]  }}</td>
-                    <td>{{ curr_line[2]  }}</td>
-                    <td>{{ curr_line[3]  }}</td>
-                    <td>{{ curr_line[4]  }}</td>
-                    <td>{{ curr_line[5]  }}</td>
-                    <td>{{ curr_line[6]  }}</td>
-                    <td>{{ curr_line[7]  }}</td>
-                    <td>{{ curr_line[8]  }}</td>
-                    <td>{{ curr_line[9]  }}</td>
-                    <td>{{ curr_line[10]  }}</td>
-                    <td>{{ curr_line[11]  }}</td>
-                    <td>{{ curr_line[12]|length  }}</td>
-                    <td>
-                    {% for curr_run_id in curr_line[12] %}
-                        <a href="{{ url_for('plot_by_run_id', run_id=curr_run_id) }}">{{ curr_run_id }}</a>&nbsp;
-                    {% endfor %}
-                    </td>
-            </tr>
-            {% endfor %}
-        </table>
-    </div><!-- /container --> 
+{% endblock %}
 
-    <div class="container-fluid text-center">
-        <ul class="pagination">
-          <li><a href="#">&laquo;</a></li>
-          <li><a href="#">1</a></li>
-          <li><a href="#">2</a></li>
-          <li><a href="#">3</a></li>
-          <li><a href="#">4</a></li>
-          <li><a href="#">5</a></li>
-          <li><a href="#">&raquo;</a></li>
-        </ul>
-    </div>
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-        <script>window.jQuery || document.write('<script src="{{
-          url_for('static', filename='js/vendor/jquery-1.11.0.min.js') }}"><\/script>')</script>
+{% block footer_text %}
+    Generated in {{ time_sec }} seconds.
+{% endblock %}
 
-        <script src="{{
-          url_for('static', filename='js/vendor/bootstrap.min.js') }}"></script>
+{% block footer %}
+    {{ super() }}
+<script src="{{
+    url_for('static', filename='js/vendor/jquery.tablesorter.min.js') }}"></script>
+<script src="{{
+    url_for('static', filename='js/vendor/jquery.tablesorter.widgets.min.js') }}"></script>
+<script src="{{
+    url_for('static', filename='js/vendor/jquery.tablesorter.pager.min.js') }}"></script>
 
-        <script src="{{
-          url_for('static', filename='js/plugins.js') }}"></script>
-        <script src="{{
-          url_for('static', filename='js/main.js') }}"></script>
-    </body>
-</html>
+<script id="js">
+$(function() {
+
+  $.extend($.tablesorter.themes.bootstrap, {
+    // these classes are added to the table. To see other table classes available,
+    // look here: http://twitter.github.com/bootstrap/base-css.html#tables
+    table      : 'table',
+    caption    : 'caption',
+    header     : 'bootstrap-header', // give the header a gradient background
+    footerRow  : '',
+    footerCells: '',
+    icons      : '', // add "icon-white" to make them white; this icon class is added to the <i> in the header
+    sortNone   : 'bootstrap-icon-unsorted',
+    sortAsc    : 'icon-chevron-up glyphicon glyphicon-chevron-up',     // includes classes for Bootstrap v2 & v3
+    sortDesc   : 'icon-chevron-down glyphicon glyphicon-chevron-down', // includes classes for Bootstrap v2 & v3
+    active     : '', // applied when column is sorted
+    hover      : '', // use custom css here - bootstrap class may not override it
+    filterRow  : '', // filter row class
+    even       : '', // odd row zebra striping
+    odd        : ''  // even row zebra striping
+  });
+
+  // call the tablesorter plugin and apply the uitheme widget
+  $("table").tablesorter({
+    // this will apply the bootstrap theme if "uitheme" widget is included
+    // the widgetOptions.uitheme is no longer required to be set
+    theme : "bootstrap",
+
+    widthFixed: true,
+
+    headerTemplate : '{content} {icon}', // new in v2.7. Needed to add the bootstrap icon!
+
+    // widget code contained in the jquery.tablesorter.widgets.js file
+    // use the zebra stripe widget if you plan on hiding any rows (filter widget)
+    widgets : [ "uitheme", "zebra" ],
+
+    widgetOptions : {
+      // using the default zebra striping class name, so it actually isn't included in the theme variable above
+      // this is ONLY needed for bootstrap theming if you are using the filter widget, because rows are hidden
+      zebra : ["even", "odd"],
+
+      // reset filters button
+      filter_reset : ".reset"
+
+      // set the uitheme widget to use the bootstrap theme class names
+      // this is no longer required, if theme is set
+      // ,uitheme : "bootstrap"
+
+    },
+
+    sortList : [[0,0]]
+  })
+  .tablesorterPager({
+
+    // target the pager markup - see the HTML block below
+    container: $(".ts-pager"),
+
+    // target the pager page select dropdown - choose a page
+    cssGoto  : ".pagenum",
+
+    // remove rows from the table to speed up the sort of large tables.
+    // setting this to false, only hides the non-visible rows; needed if you plan to add/remove rows with the pager enabled.
+    removeRows: false,
+
+    // output string - default is '{page}/{totalPages}';
+    // possible variables: {page}, {totalPages}, {filteredPages}, {startRow}, {endRow}, {filteredRows} and {totalRows}
+    output: '{startRow} - {endRow} / {filteredRows} ({totalRows})'
+
+  });
+
+});
+</script>
+{% endblock %}

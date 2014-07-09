@@ -15,6 +15,24 @@ try:
 except:
     import StringIO
 
+
+class VALID_COLUMNS:
+    RUN_CONFIG = (
+        "id",
+        "networks_id",
+        "trails_id",
+        "mutate_id",
+        "generations",
+        "population",
+        "moves_limit",
+        "elite_count",
+        "p_mutate",
+        "p_crossover",
+        "weight_min",
+        "weight_max",
+        "RowNumber")
+
+
 class NetworkNotFound(Exception):
     def __init__(self, value):
         self.value = value
@@ -560,7 +578,7 @@ class DBUtils:
                     p_crossover,
                     weight_min,
                     weight_max
-            ))
+                ))
 
             try:
                 ret_val = curs.fetchall()[0][0]
@@ -592,78 +610,58 @@ class DBUtils:
         return ret_val
 
 
-    def tableListing(self,
-        page      = 1,
-        page_size = 20,
-        sort_col  = "RowNumber",
-        filters   = {"generations" : 200,
-                     "moves_limit" : 325}):
+    @staticmethod
+    def __build_where_filters(filters=None, table="run_config"):
+        """ Takes a given set of filters and builds a SQL ready
+        WHERE statement (or statements for multiple filters) and returns
+        a string ready for variable substitution in psycopg2 cursor
+        execute.
 
-        # Verify that the sort column is a valid column to sort by.
-        valid_cols = ("id",
-            "networks_id",
-            "trails_id",
-            "mutate_id",
-            "generations",
-            "population",
-            "moves_limit",
-            "elite_count",
-            "p_mutate",
-            "p_crossover",
-            "weight_min",
-            "weight_max",
-            "RowNumber")
+        Returns:
+            str. A string of the WHERE part of query.
+        """
 
-        if sort_col not in valid_cols:
-            print "ERROR: An invalid sort column was specifed."
-            return (-1, None)
-
-        # Build the WHERE part of the query based off filters.
         start_filter = True
-        filter_str   = ""
-        filter_val   = []
+        filter_str = ""
 
-        for curr_key, curr_val in filters.iteritems():
+        if table == "run_config":
+            valid_cols = VALID_COLUMNS.RUN_CONFIG
+
+
+        for curr_key in filters.iterkeys():
+            this_s = ""
+
             if start_filter:
-                filter_str   += "WHERE "
-                start_filter =  False
+                this_s += "WHERE "
+                start_filter = False
             else:
-                filter_str   += "AND "
+                this_s += "AND "
 
             if curr_key in valid_cols:
-                filter_str   += "{0} = %s\n".format(curr_key)
-                filter_val.append(curr_val)
+                filter_str += this_s + "{0} = %s\n".format(curr_key)
 
-        # Count the total number of results.
-        with self.__getCursor() as curs:
-            curs.execute("""SELECT COUNT(id)
-                  FROM   run_config
-                  WHERE  generations = %s""", (200,) )
+        return filter_str
 
-            row_count = int(curs.fetchall()[0][0])
+
+    def table_listing(
+            self,
+            filters=None):
+
+        if filters == None:
+            filters = {"generations" : 200}
+
+        where_str = DBUtils.__build_where_filters(filters)
 
         # Build the base query string with the sort column plugged in.
-        query_str = """SELECT id, trails_id, networks_id, generations,
+        data_query_str = """SELECT id, trails_id, networks_id, generations,
             population, moves_limit, elite_count, mutate_id,
             p_mutate, p_crossover, weight_min, weight_max
-        FROM    ( SELECT ROW_NUMBER()
-                    OVER ( ORDER BY id ) AS RowNumber, *
-                  FROM   run_config
-                  {1}
-                ) AS RowConstrainedResult
-        WHERE   RowNumber >= %s
-            AND RowNumber < %s
-        ORDER BY {0}""".format(sort_col, filter_str)
-
-        print query_str
-
-        # Append the page number information.
-        filter_val.append((page - 1) * page_size)
-        filter_val.append(page * page_size)
+            FROM   run_config
+            {0}""".format(where_str)
 
         # Run the query and get the data table.
         with self.__getCursor() as curs:
-            curs.execute(query_str, filter_val)
+            curs.execute(data_query_str, filters.values())
 
             run_config_l = curs.fetchall()
 
@@ -673,10 +671,12 @@ class DBUtils:
         for curr_run_info in run_config_l:
             result = self.getRunsWithConfigID(curr_run_info[0])
 
-            ret_val.append( curr_run_info + tuple(result) )
+            joined_list = curr_run_info + (list(result), )
+
+            ret_val.append(joined_list)
 
 
-        return (row_count, ret_val)
+        return ret_val
 
 
     def getRunsWithConfigID(self, config_id):

@@ -1,13 +1,10 @@
 import datetime
+import json
 import math
 import os
-import StringIO
 import base64
 from flask import Flask, render_template, request, make_response, url_for
-import matplotlib.pyplot as plt
-import matplotlib.backends.backend_agg as pltagg
 import mimetypes
-import numpy as np
 
 from GATools.DBUtils import DBUtils
 from GATools.plot.chart import chart
@@ -29,29 +26,24 @@ def get_networks():
     print pgdb.getNetworks().items()
     return pgdb.getNetworks().items()
 
-@app.route('/')
-def index():
-    page = request.args.get('page')
-    if page is None:
-        page = 1
-    else:
-        page = int(page)
+@app.route(
+    '/',
+    defaults={
+        'filters' :
+            json.dumps({'generations' : 200, 'moves_limit': 200})
+        })
+@app.route('/filter/<filters>')
+def index(filters):
+    """ Renders the home page showing a table of results.
 
-    rows = request.args.get('rows')
-    if rows is None:
-        rows = 20
-    else:
-        rows = int(rows)
+    """
+    filters_d = json.loads(filters)
 
-    num_rows, table_data = pgdb.tableListing(
-        page=page,
-        page_size=rows)
-    return render_template("home.html",
-        curr_page=page,
-        page_size=rows,
-        max_page=int(math.ceil(float(num_rows) / float(rows))),
-        table_data=table_data,
-        filters=None)
+    table_data = pgdb.table_listing(filters=filters_d)
+
+    return render_template(
+        "home.html",
+        table_data=table_data)
 
 @app.errorhandler(404)
 def page_not_found(e):
