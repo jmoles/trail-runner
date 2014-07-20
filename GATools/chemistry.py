@@ -76,7 +76,7 @@ class DelayLine(object):
 
         for row in self.__rate_k:
             self.__eq_vel.append(lambda XC, XS: row[0] * XC**1 * XS**1)
-            self.__eq_vel.append(lambda XIM: row[1] * XIM**1)
+            self.__eq_vel.append(lambda XIM: row[0] * XIM**1)
             self.__eq_vel.append(lambda XS: row[2] * XS**1)
 
 
