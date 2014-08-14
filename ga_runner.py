@@ -7,6 +7,7 @@ import numpy as np
 import os
 import pickle
 import random
+import re
 import scoop
 import socket
 import sys
@@ -33,7 +34,7 @@ creator.create("Individual", list, fitness=creator.FitnessMulti)
 P_BIT_MUTATE    = 0.05
 GENS_DEF        = 200
 POP_DEF         = 300
-MOVES_DEF       = 325
+MOVES_DEF       = 200
 ELITE_COUNT_DEF = 3
 P_MUTATE_DEF    = 0.2
 P_CROSSOVER_DEF = 0.5
@@ -115,7 +116,7 @@ def main():
     parser.add_argument("--weight-max", type=float, nargs="?",
         default=WEIGHT_MAX_DEF,
         help="Maximum weight")
-    parser.add_argument("--elite-count", type=float, nargs="?",
+    parser.add_argument("--elite-count", type=int, nargs="?",
         default=ELITE_COUNT_DEF,
         help="Number of elites taken after each generation.")
 
@@ -175,7 +176,16 @@ def main():
     with open(temp_f_network, "w") as f:
         pickle.dump(pybrain_network, f)
 
-    network_params_len = len(pybrain_network.params)
+    # TODO: Need to fix this for chemistry support here.
+    if "Chemical" in pybrain_network.name:
+        chem_re = re.compile(
+                "JL NN Chemical DL([0-9]+) \([0-9]+,[0-9]+,[0-9]+\) v[0-9]+")
+        chem_dl_length = int(chem_re.findall(pybrain_network.name)[0])
+
+        network_params_len = len(pybrain_network.params) + chem_dl_length * 3
+
+    else:
+        network_params_len = len(pybrain_network.params)
 
     for curr_repeat in range(0, args.repeat):
         repeat_start_time = datetime.datetime.now()

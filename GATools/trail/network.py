@@ -1,34 +1,58 @@
-from pybrain.structure import FeedForwardNetwork, LinearLayer, SigmoidLayer, FullConnection, RecurrentNetwork
-
-from pybrain.structure.networks.feedforward import FeedForwardNetworkComponent
+from pybrain.structure import FeedForwardNetwork, RecurrentNetwork
+from pybrain.structure import LinearLayer, SigmoidLayer, FullConnection
 
 import numpy as np
+import re
 
 try:
     import cPickle as pickle
 except:
     import pickle
 
-from ..DBUtils import DBUtils
+from ..chemistry import DelayLine
 
 class network:
-    def __init__(self):
-        pgdb                 = DBUtils()
+    def __init__(self, debug=False):
         self.__params_length = 0
+        self.__chem_network = False
+        self.__delay_line = None
+        self.__dl_length = 0
+        self.network = None
 
-
-    def readNetwork(self, network_type):
-        self.network         = pgdb.getNetworkByID(network_type)
-        self.__params_length = len(self.network.params)
+        self.__DEBUG = debug
 
     def readNetworkInstant(self, pb_network):
         self.network         = pb_network
-        self.__params_length = len(self.network.params)
+        self.__process_network()
 
     def readNetworkFromFile(self, filename):
         with open(filename, 'r') as f:
             self.network         = pickle.load(f)
-        self.__params_length = len(self.network.params)
+        self.__process_network()
+
+    def __process_network(self):
+        """ Examines the network and configures the class for using it.
+        """
+        if "Chemical" in self.network.name:
+            # This is a chemical delay line.
+            chem_re = re.compile(
+                "JL NN Chemical DL([0-9]+) \([0-9]+,[0-9]+,[0-9]+\) v[0-9]+")
+            self.__dl_length = int(chem_re.findall(self.network.name)[0])
+            self.__chem_network = True
+            dl_param_count = self.__dl_length * 3
+            if self.__DEBUG:
+                print "DEBUG: Network is a chemical network."
+
+        else:
+            dl_param_count = 0
+            if self.__DEBUG:
+                print "DEBUG: Network is NOT a chemical network."
+
+        self.__params_length = len(self.network.params) + dl_param_count
+
+        if self.__DEBUG:
+            print "DEBUG: Paramters are length {0}.".format(
+                self.__params_length)
 
     def determineMove(self, trailAhead):
         """ Returns the move the agent should make.
@@ -46,10 +70,23 @@ class network:
 
         """
 
-        if trailAhead == True:
-            result = self.network.activate([1, 0])
+        if self.__chem_network:
+            # First, activate the chemical delay line.
+            # Then, take the output of the delay line and active the
+            # neural network.
+            chem_res = self.__delay_line.evaluate(int(trailAhead))
+
+            nn_input = []
+            for curr_x in chem_res:
+                nn_input.append(curr_x)
+                nn_input.append(1 - curr_x)
+
+            result = self.network.activate(nn_input)
         else:
-            result = self.network.activate([0, 1])
+            if trailAhead == True:
+                result = self.network.activate([1, 0])
+            else:
+                result = self.network.activate([0, 1])
 
         if (len(result) == 3):
             return (np.argmax(result) + 1)
@@ -57,7 +94,17 @@ class network:
             return np.argmax(result)
 
     def updateParameters(self, new_params):
-        self.network._setParameters(new_params)
+        if self.__chem_network:
+            # Create the chemistry delay line and pass the rest
+            # of the parameters to the neural network.
+            self.__delay_line = DelayLine(
+                rate_constants=abs(np.reshape(
+                    new_params[-3 * self.__dl_length:],(self.__dl_length,3))),
+                user_interactive=False)
+
+            self.network._setParameters(new_params[:-3 * self.__dl_length])
+        else:
+            self.network._setParameters(new_params)
 
     def getParamsLength(self):
         return self.__params_length
@@ -178,5 +225,31 @@ class network:
             mdl_prev = mdl_layer
 
         ret_net.sortModules()
+
+        return ret_net
+
+    @staticmethod
+    def create_jefferson_chemical_network(
+        mdl_length=2,
+        hidden_count=5,
+        output_count=3,
+        in_to_out_connect=True,
+        name=None):
+
+        if not name:
+            name = "JL NN Chemical DL{0} ({1},{2},{3}) v1".format(
+                mdl_length,
+                mdl_length * 2,
+                hidden_count,
+                output_count)
+
+
+        ret_net = network.createJeffersonStyleNetwork(
+            in_count=mdl_length * 2,
+            hidden_count=hidden_count,
+            output_count=output_count,
+            recurrent=True,
+            in_to_out_connect=in_to_out_connect,
+            name=name)
 
         return ret_net

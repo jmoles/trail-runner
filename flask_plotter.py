@@ -63,7 +63,6 @@ def config_by_id(config_id):
             ext="svg",
             stat_group=c_elem,
             inline=True,
-            chart_inst=ch,
             show_title=False)
 
         pdf_url = url_for(
@@ -71,7 +70,6 @@ def config_by_id(config_id):
             config_id=config_id,
             ext="pdf",
             stat_group=c_elem,
-            chart_inst=ch,
             show_title=False)
 
         eps_url = url_for(
@@ -79,7 +77,6 @@ def config_by_id(config_id):
             config_id=config_id,
             ext="eps",
             stat_group=c_elem,
-            chart_inst=ch,
             show_title=False)
 
         jpg_url = url_for(
@@ -87,7 +84,6 @@ def config_by_id(config_id):
             config_id=config_id,
             ext="jpg",
             stat_group=c_elem,
-            chart_inst=ch,
             show_title=False)
 
         png_url = url_for(
@@ -95,7 +91,6 @@ def config_by_id(config_id):
             config_id=config_id,
             ext="png",
             stat_group=c_elem,
-            chart_inst=ch,
             show_title=False)
 
         image_d  = {}
@@ -158,23 +153,23 @@ def plot_by_run_id(run_id):
     for c_elem in ("food", "moves", "moves_stats"):
         output, plot_title = plot_img(
             run_id=run_id, ext="svg", stat_group=c_elem, inline=True,
-            chart_inst=ch, show_title=False)
+            show_title=False)
 
         pdf_url = url_for(
             'plot_img', run_id=run_id, ext="pdf", stat_group=c_elem,
-            group=False, chart_inst=ch, show_title=False)
+            group=False, show_title=False)
 
         eps_url = url_for(
             'plot_img', run_id=run_id, ext="eps", stat_group=c_elem,
-            group=False, chart_inst=ch, show_title=False)
+            group=False, show_title=False)
 
         jpg_url = url_for(
             'plot_img', run_id=run_id, ext="jpg", stat_group=c_elem,
-            group=False, chart_inst=ch, show_title=False)
+            group=False, show_title=False)
 
         png_url = url_for(
             'plot_img', run_id=run_id, ext="jpg", stat_group=c_elem,
-            group=False, chart_inst=ch, show_title=False)
+            group=False, show_title=False)
 
         image_d  = {}
         image_d["data"]  = output
@@ -219,6 +214,11 @@ def plot_by_run_id(run_id):
 @app.route("/plot/line/config_id/<int:config_id>/<ext>/<stat_group>")
 def plot_by_config_id(config_id, ext="png", stat_group ="food",
     inline=False, chart_inst=chart(), show_title=True):
+
+    #TODO: Fix isdsue with variables here.
+    print show_title
+
+    print request.args.get('show_title')
 
     output, plot_title = chart_inst.lineChartByConfigId(config_id, ext,
         stat_group=stat_group, title=show_title)
@@ -314,4 +314,7 @@ def plot_sweep():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(
+        debug=True,
+        host="0.0.0.0"
+        )
