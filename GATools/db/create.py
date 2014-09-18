@@ -16,14 +16,16 @@ class create:
         self.__dsn = "host={0} dbname={1} user={2} password={3}".format(
             host, db, user, password)
 
-
     def run(self):
+        """ Executes the creation of networks in the database table.
+        Designed so more function calls can get added here if necessary."""
         self.__addNetworks()
 
     def __addNetworks(self,
-        file_name="example.sql",
         table="networks",
         create_table=False):
+        """ Adds networks to the specified table. """
+
         networks_d = tuple(self.__prepareNetworks())
 
         conn = psycopg2.connect(self.__dsn)
@@ -54,8 +56,10 @@ class create:
         conn.close()
 
     def __prepareNetworks(self):
+        """ Builds and pickles the tables for DB ready format. """
         ret_d = []
 
+        # Build the neural networks for Jefferson NN and flavors.
         net_d = {}
         net_d["name"]    = "Jefferson NN (2,5,4) v1"
         net_d["network"] = psycopg2.Binary(pickle.dumps(
@@ -63,6 +67,42 @@ class create:
                     in_count=2,
                     hidden_count=5,
                     output_count=4,
+                    recurrent=True,
+                    in_to_out_connect=True,
+                    name=net_d["name"])))
+        ret_d.append(net_d)
+
+        net_d = {}
+        net_d["name"]    = "Jefferson NN (2, 5, 3) v1"
+        net_d["network"] = psycopg2.Binary(pickle.dumps(
+                network.createJeffersonStyleNetwork(
+                    in_count=2,
+                    hidden_count=5,
+                    output_count=3,
+                    recurrent=True,
+                    in_to_out_connect=True,
+                    name=net_d["name"])))
+        ret_d.append(net_d)
+
+        net_d = {}
+        net_d["name"]    = "Jefferson NN (2, 1, 4) v1"
+        net_d["network"] = psycopg2.Binary(pickle.dumps(
+                network.createJeffersonStyleNetwork(
+                    in_count=2,
+                    hidden_count=1,
+                    output_count=4,
+                    recurrent=True,
+                    in_to_out_connect=True,
+                    name=net_d["name"])))
+        ret_d.append(net_d)
+
+        net_d = {}
+        net_d["name"]    = "Jefferson NN (2, 1, 3) v1"
+        net_d["network"] = psycopg2.Binary(pickle.dumps(
+                network.createJeffersonStyleNetwork(
+                    in_count=2,
+                    hidden_count=1,
+                    output_count=3,
                     recurrent=True,
                     in_to_out_connect=True,
                     name=net_d["name"])))
