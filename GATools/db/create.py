@@ -156,6 +156,28 @@ class create:
                     name=net_d["name"])))
             ret_d.append(net_d)
 
+        for idx in range(2, 11):
+            net_d = {}
+            net_d["name"]    = "JL NN Chemical DL{0} ({1}, 5, 3) v1".format(
+                idx, idx * 2)
+            net_d["network"] = psycopg2.Binary(pickle.dumps(
+                network.create_jefferson_chemical_network(
+                    mdl_length=idx,
+                    hidden_count=5,
+                    output_count=3,
+                    name=net_d["name"])))
+            ret_d.append(net_d)
+
+        for idx in range(2, 11):
+            net_d = {}
+            net_d["name"]    = "JL NN Chemical DL{0} ({1}, 1, 3) v1".format(
+                idx, idx * 2)
+            net_d["network"] = psycopg2.Binary(pickle.dumps(
+                network.create_jefferson_chemical_network(
+                    mdl_length=idx,
+                    hidden_count=1,
+                    output_count=3,
+                    name=net_d["name"])))
+            ret_d.append(net_d)
+
         return ret_d
-
-
