@@ -30,7 +30,7 @@ class DBUtils:
         db=os.environ.get("PSYCOPG2_DB_DB", "jmoles"),
         user=os.environ.get("PSYCOPG2_DB_USER", "jmoles"),
         password=os.environ.get("PSYCOPG2_DB_PASS", "password"),
-        port=os.environ.get("PSYCOPG2_DB_PORT", 5434),
+        port=os.environ.get("PSYCOPG2_DB_PORT", 5432),
         debug=False):
 
         self.__dsn = (
