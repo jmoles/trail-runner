@@ -1,4 +1,3 @@
-import argparse
 import datetime
 from deap import algorithms, base, creator, tools
 import json
@@ -12,13 +11,14 @@ import scoop
 import socket
 import sys
 import tempfile
-import textwrap
+
 import time
-import zmq
 
 from GATools.trail.network import network as AgentNetwork
 from GATools.trail.trail import trail as AgentTrail
 from GATools.DBUtils import DBUtils
+
+from GATools.utils import utils
 
 try:
     import progressbar
@@ -32,14 +32,6 @@ creator.create("Individual", list, fitness=creator.FitnessMulti)
 
 # Some constants
 P_BIT_MUTATE    = 0.05
-GENS_DEF        = 200
-POP_DEF         = 300
-MOVES_DEF       = 200
-ELITE_COUNT_DEF = 3
-P_MUTATE_DEF    = 0.2
-P_CROSSOVER_DEF = 0.5
-WEIGHT_MIN_DEF  = -5.0
-WEIGHT_MAX_DEF  = 5.0
 
 def __singleMazeTask(individual, moves, trail_matrix, trail_name, trail_rot,
     pb_filename, detailed_stats=False):
@@ -71,70 +63,7 @@ def __singleMazeTask(individual, moves, trail_matrix, trail_name, trail_rot,
     else:
         return (at.getFoodConsumed(), at.getNumMoves())
 
-def main():
-    # Query the database to gather some items for argument output.
-    pgdb = DBUtils(password=os.environ['PSYCOPG2_DB_PASS'])
-
-    network_types_s, valid_net_opts = pgdb.fetchNetworkCmdPrettyPrint()
-    trail_types_s, valid_trail_opts = pgdb.fetchTrailList()
-
-    # Parse the arguments
-    parser = argparse.ArgumentParser(
-        description="Launches SCOOP parallelized version "
-        "of genetic algorithm.",
-        formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("-g", "--generations", type=int, nargs="?",
-        default=GENS_DEF,
-        help="Number of generations to run for.")
-    parser.add_argument("-p", "--population", type=int, nargs="?",
-        default=POP_DEF,
-        help="Size of the population.")
-    parser.add_argument("-m", "--moves", type=int, nargs="?",
-        default=MOVES_DEF,
-        help="Maximum moves for agent.")
-    parser.add_argument("-n", "--network", type=int, nargs="?",
-        default=1,
-        help=textwrap.dedent("Network type to use. Valid options are:\n" +
-            network_types_s),
-        choices=valid_net_opts)
-    parser.add_argument("-t", "--trail", type=int, nargs="?",
-        default=3,
-        help=textwrap.dedent(
-            "Trail to use. Valid options (with recommended moves) are:\n" +
-            trail_types_s),
-        choices=valid_trail_opts)
-
-    parser.add_argument("--prob-mutate", type=float, nargs="?",
-        default=P_MUTATE_DEF,
-        help="Probability of a mutation to occur.")
-    parser.add_argument("--prob-crossover", type=float, nargs="?",
-        default=P_CROSSOVER_DEF,
-        help="Probability of crossover to occur.")
-    parser.add_argument("--weight-min", type=float, nargs="?",
-        default=WEIGHT_MIN_DEF,
-        help="Minimum weight.")
-    parser.add_argument("--weight-max", type=float, nargs="?",
-        default=WEIGHT_MAX_DEF,
-        help="Maximum weight")
-    parser.add_argument("--elite-count", type=int, nargs="?",
-        default=ELITE_COUNT_DEF,
-        help="Number of elites taken after each generation.")
-
-    parser.add_argument("-z", "--enable-zmq-updates", action='store_true',
-        help="Enable use of ZMQ messaging for real-time GUI monitoring.")
-    parser.add_argument("-r", "--repeat", type=int, nargs="?",
-        default=1, help="Number of times to run simulations.")
-    parser.add_argument("--disable-db",
-        action='store_true',
-        help="Disables logging of run to database.")
-    parser.add_argument("--debug",
-        action='store_true',
-        help="Enables debug messages and flag for data in DB.")
-    parser.add_argument("-q", "--quiet",
-        action='store_true',
-        help="Disables all output from application.")
-    args = parser.parse_args()
-
+def main(args):
     run_date = time.time()
 
     # Configure Logging
@@ -147,9 +76,8 @@ def main():
     if args.quiet:
         root.propogate = False
 
-    if args.weight_min > args.weight_max:
-        logging.critical("Minimum weight must be greater than max weight.")
-        sys.exit(1)
+    # Set up the database.
+    pgdb = DBUtils()
 
     # Get the name of this agent trail for later use
     at = AgentTrail()
@@ -196,12 +124,6 @@ def main():
         hof_array = np.zeros((args.generations,
             network_params_len))
 
-        if(args.enable_zmq_updates):
-            # Configure ZMQ - Publisher role
-            context   = zmq.Context()
-            sender    = context.socket(zmq.PUSH)
-            sender.bind("tcp://*:9854")
-
         toolbox = base.Toolbox()
         toolbox.register("map", scoop.futures.map)
         toolbox.register("attr_float", random.uniform,
@@ -226,7 +148,6 @@ def main():
 
         # Start a new evolution
         population = toolbox.population(n=args.population)
-        start_gen  = 0
         halloffame = tools.HallOfFame(maxsize=1)
         food_stats = tools.Statistics(key=lambda ind: ind.fitness.values[0])
         move_stats = tools.Statistics(key=lambda ind: ind.fitness.values[1])
@@ -244,9 +165,6 @@ def main():
         for gen in range(1, args.generations + 1):
 
             gen_start_time = datetime.datetime.now()
-
-            # TODO: Need to add check and comms from master
-            # to cease work when the stop button is pushed.
 
             # Select the next generation individuals
             offspring = toolbox.select(population, len(population))
@@ -273,21 +191,6 @@ def main():
 
             # Calculate the percent done for the progress bar.
             percent_done = int((float(gen) / float(args.generations)) * 100)
-
-            if gen == args.generations:
-                done = True
-            else:
-                done = False
-
-            if(args.enable_zmq_updates):
-                sender.send_json({
-                        "progress_percent"   : percent_done,
-                        "current_generation" : gen,
-                        "current_evals"      : len(invalid_ind),
-                        "top_dog"            : tools.selBest(
-                            population, k=1)[0],
-                        "done"               : done,
-                        "record"             : record})
 
             # Record the statistics for this run.
             elite_food, elite_moves, this_move_stats = (
@@ -326,8 +229,6 @@ def main():
 
             gens_stat_list.append(record_info)
 
-
-
             hof_array[gen - 1] = np.array(tools.selBest(population, k=1)[0])
 
             # Update the progress bar
@@ -340,7 +241,7 @@ def main():
         if not args.disable_db:
             run_info = {}
 
-            run_info["trails_id"]    = 3
+            run_info["trails_id"]    = args.trail
             run_info["networks_id"]  = args.network
             run_info["mutate_id"]    = 1 # Only one type of mutate for now.
             run_info["host_type_id"] = 1 # Only one host type for now.
@@ -378,10 +279,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
-
-
-
-
-
-
+    args = utils.parse_args()
+    main(args)

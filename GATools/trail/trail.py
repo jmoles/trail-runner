@@ -15,8 +15,6 @@ class GridVals:
     END    = 8 # Optimal ending point for the agent.
     HIST   = 9 # History of the agent.
 
-    FULL_LIST = [EMPTY, FOOD, ANT0, ANT90, ANT180, ANT270, OPT, END, HIST]
-
 class trail:
     """ Class to handle the trail for the agent to move through.
     """
@@ -147,23 +145,6 @@ class trail:
             return True
         else:
             return False
-
-    def printDataMatrix(self):
-        np.set_printoptions(threshold='nan')
-        print self.__data_matrix
-
-    def getTrailDim(self):
-        """ Get the dimenions of the current trail.
-
-        Returns:
-            list. X, Y size of the current trail.
-        """
-        maxY, maxX = self.__data_matrix.shape
-
-        return (maxX, maxY)
-
-    def getMatrix(self):
-        return self.__data_matrix
 
     def getNumMoves(self):
         """ Returns the number of moves the agent has made.
@@ -333,4 +314,3 @@ class trail:
 
     def __roundAngle(self, x, base=ROTATE_ANGLE):
         return int(base * round(float(x) / base))
-

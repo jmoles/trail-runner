@@ -21,10 +21,6 @@ class network:
 
         self.__DEBUG = debug
 
-    def readNetworkInstant(self, pb_network):
-        self.network         = pb_network
-        self.__process_network()
-
     def readNetworkFromFile(self, filename):
         with open(filename, 'r') as f:
             self.network         = pickle.load(f)
@@ -105,9 +101,6 @@ class network:
             self.network._setParameters(new_params[:-3 * self.__dl_length])
         else:
             self.network._setParameters(new_params)
-
-    def getParamsLength(self):
-        return self.__params_length
 
     @staticmethod
     def createJeffersonStyleNetwork(

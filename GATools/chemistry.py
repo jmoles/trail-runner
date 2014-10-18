@@ -4,7 +4,6 @@ trail computations.
 """
 import numpy as np
 import scipy.integrate
-import pylab
 import sys
 
 
@@ -138,29 +137,6 @@ class DelayLine(object):
         self.__prev_y_final = ret_list
 
         return ret_list
-
-    def show_plot(self):
-        """ Returns a dictionary with the concentration of the species
-        throughout the last evaluation.
-
-        Returns:
-            dict. Keys of species names with lists of species concentrations
-            throughout the last evaluation.
-
-        """
-
-        # Determine the length of the x axis to plot.
-        t_val_mult = self.__y_vals.shape[0] / (self.__runtime / self.__step)
-        t_axis = np.arange(0, self.__runtime * t_val_mult, self.__step)
-
-        plot1 = pylab.plot(t_axis, self.__y_vals)
-        pylab.legend(plot1, [
-            "XIN", "X1S", "X1IM", "X1", "X1C",
-            "X2S", "X2IM", "X2", "X2C", "X3S",
-            "X3IM", "X3", "X3C"])
-        pylab.show()
-
-
 
     @staticmethod
     def build_y0_input(input_val, prev_val):
