@@ -1,37 +1,28 @@
 import os
 import unittest
 
-from DBUtils import DBUtils
+from ..DBUtils import DBUtils
 
 class TestDatabaseUtils(unittest.TestCase):
 
     def setUp(self):
-        self.pgdb = DBUtils(password=os.environ['PSYCOPG2_DB_PASS'])
+        # Test Fixture
+        self.pgdb = DBUtils()
 
-    def testNetworkList(self):
-        net_s, net_i, net_l = self.pgdb.fetchNetworksList()
+    def test_getIDs(self):
+        # Checks that
+        results = self.pgdb.getIDs()
 
-        # Verify that the list of networks are equal.
-        self.assertEqual(
-            len(net_i), len(net_l),
-            "Length of network list doesn't match number of integers.")
+        # Verify each list is a list of ints.
+        for key, curr_list in results.items():
+            self.assertTrue(all(isinstance(x, int) for x in curr_list))
 
-        # Verify that the net_s is a single string
-        self.assertEqual(
-            type(net_s), str,
-            "Network string is not a single string.")
+    def test_getNetworkByID(self):
+        pass
 
-        net_s_2, net_i_2 = self.pgdb.fetchNetworkCmdPrettyPrint()
+    def test_getTrailData(self):
+        pass
 
-        # Verify that the values returned by these two functions
-        # are identical.
-        self.assertEqual(
-            net_s, net_s_2,
-            "Network strings for command prompt don't match!")
-
-        self.assertEqual(
-            net_i, net_i_2,
-            "List of valid network integers don't match.")
 
 if __name__ == '__main__':
     unittest.main()

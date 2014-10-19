@@ -5,9 +5,9 @@ except:
 
 import os
 import psycopg2
+import textwrap
 
 from ..trail.network import network
-
 
 class create:
     def __init__(self, host="db.cecs.pdx.edu", db="jmoles",
@@ -16,46 +16,41 @@ class create:
         self.__dsn = "host={0} dbname={1} user={2} password={3}".format(
             host, db, user, password)
 
-    def run(self):
-        """ Executes the creation of networks in the database table.
-        Designed so more function calls can get added here if necessary."""
-        self.__addNetworks()
+    @staticmethod
+    def generate_network_string(filename="networks.sql", table="networks", create_table=False):
+        """ Generates a string of SQL for insertion to database. """
 
-    def __addNetworks(self,
-        table="networks",
-        create_table=False):
-        """ Adds networks to the specified table. """
+        query_s = ""
 
-        networks_d = tuple(self.__prepareNetworks())
-
-        conn = psycopg2.connect(self.__dsn)
-        curs = conn.cursor()
+        networks_d = tuple()
 
         if create_table:
             # Create the table.
-            query_s = """CREATE TABLE {0} (
+            query_s += textwrap.dedent("""
+                CREATE TABLE {0} (
                 id serial  NOT NULL,
                 name text  NOT NULL,
                 net bytea  NOT NULL,
-                CONSTRAINT networks_pk PRIMARY KEY (id));""".format(table)
+                CONSTRAINT networks_pk PRIMARY KEY (id));
 
-            curs.exeute(query_s)
+                """.format(table))
 
         # Populate the table.
-        query_s = """INSERT INTO {0} (id, name, net)
-            VALUES (
-                DEFAULT,
-                %(name)s,
-                %(network)s);""".format(table)
+        query_s += "INSERT INTO {0} (id, name, net) VALUES (".format(table)
+        for curr_d in create.__prepareNetworks():
+            query_s += "\n    (DEFAULT, {0}, {1}),".format(
+            curr_d["name"],
+            curr_d["network"])
 
-        curs.executemany(query_s, networks_d)
+        query_s = query_s.rstrip(",")
 
-        conn.commit()
+        query_s += ");"
 
-        curs.close()
-        conn.close()
+        with open(filename, 'w') as fh:
+            fh.write(query_s)
 
-    def __prepareNetworks(self):
+    @staticmethod
+    def __prepareNetworks():
         """ Builds and pickles the tables for DB ready format. """
         ret_d = []
 

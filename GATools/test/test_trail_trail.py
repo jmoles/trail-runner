@@ -4,9 +4,9 @@ import os
 import unittest
 
 # Parts of design under test.
-from DBUtils import DBUtils
-from trail.trail import trail
-from trail.trail import GridVals
+from ..DBUtils import DBUtils
+from ..trail.trail import trail
+from ..trail.trail import GridVals
 
 
 TEST_TRAIL = np.matrix(
@@ -35,7 +35,7 @@ class TestTrailFunctions(unittest.TestCase):
 
     def setUp(self):
         # This class requires accessing the database.
-        self.pgdb  = DBUtils(password=os.environ['PSYCOPG2_DB_PASS'])
+        self.pgdb  = DBUtils()
         self.trail_i = trail()
         self.trail_i.readTrail(TEST_TRAIL_DB_ID)
 

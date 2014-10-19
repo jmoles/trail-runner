@@ -15,6 +15,10 @@ class GridVals:
     END    = 8 # Optimal ending point for the agent.
     HIST   = 9 # History of the agent.
 
+    # List here for testing scripts.
+    FULL_LIST = [EMPTY, FOOD, ANT0, ANT90, ANT180, ANT270, OPT, END, HIST]
+
+
 class trail:
     """ Class to handle the trail for the agent to move through.
     """
@@ -178,6 +182,21 @@ class trail:
             str. Friendly name of the trail.
         """
         return self.__trail_name
+
+    def getTrailDim(self):
+        """ Get the dimenions of the current trail.
+
+        Returns:
+            list. X, Y size of the current trail.
+        """
+        maxY, maxX = self.__data_matrix.shape
+
+        return (maxX, maxY)
+
+    def getMatrix(self):
+        """ Returns the data matrix.
+        """
+        return self.__data_matrix
 
     def __squareAhead(self):
         """ Determines the square in front of the agent based off present position.

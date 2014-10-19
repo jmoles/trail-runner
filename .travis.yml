@@ -1,0 +1,25 @@
+language: python
+python:
+  - "2.6"
+  - "2.7"
+  - "3.2"
+  - "3.3"
+  - "3.4"
+# Addons for travis
+addons:
+    postgresql: "9.3"
+# command to install dependencies
+install: "pip install -r requirements.txt"
+# environment variables
+env: PSYCOPG2_DB_HOST=localhost
+env: PSYCOPG2_DB_DB=ga_runner_testing
+env: PSYCOPG2_DB_USER=postgres
+env: PSYCOPG2_DB_PASS=
+# commands to run before the tests
+before_script:
+    - psql -c 'create database ga_runner_testing;' -U postgres
+    - psql -f sql/create.sql
+    - python -c "from GATools.db.create import create; create.generate_network_string()"
+    - psql -f networks.sql
+# command to run tests
+script: nosetests
