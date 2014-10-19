@@ -8,6 +8,10 @@ python:
 # Addons for travis
 addons:
     postgresql: "9.3"
+
+before_install:
+    - sudo apt-get install python-numpy python-scipy python-psycopg2
+
 # command to install dependencies
 install: "pip install -r requirements.txt"
 # environment variables
