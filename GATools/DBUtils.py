@@ -37,6 +37,8 @@ class DBUtils:
             "host={0} dbname={1} user={2} password={3} port={4}".format(
                 host, db, user, password, port))
 
+        self.__debug = debug
+
         self.__pool        = psycopg2.pool.SimpleConnectionPool(
             1,
             10,
