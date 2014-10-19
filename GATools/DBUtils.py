@@ -65,6 +65,94 @@ class DBUtils:
             "mutate" : list(set([int(i[2]) for i in results]))
         }
 
+    def getRunConfigID(self, run_info):
+        """ Gets the id in the run_config table based off a run_info dict.
+
+        This is performed by checking if the configuration of the run exists
+        in the database. If it does not, it is added and a run
+        configuration id is created and returned.
+
+        If debug is set, operation will not commit.
+        """
+        conn = psycopg2.connect(self.__dsn)
+        curs = conn.cursor()
+
+        curs.execute("""SELECT id
+            FROM run_config
+            WHERE
+            networks_id                    = %s AND
+            trails_id                      = %s AND
+            mutate_id                      = %s AND
+            generations                    = %s AND
+            population                     = %s AND
+            moves_limit                    = %s AND
+            elite_count                    = %s AND
+            round(p_mutate::numeric, 4)    = %s AND
+            round(p_crossover::numeric, 4) = %s AND
+            weight_min                     = %s AND
+            weight_max                     = %s
+            """, (
+                run_info["networks_id"],
+                run_info["trails_id"],
+                run_info["mutate_id"],
+                run_info["generations"],
+                run_info["population"],
+                run_info["moves_limit"],
+                run_info["elite_count"],
+                round(run_info["p_mutate"], 4),
+                round(run_info["p_crossover"], 4),
+                run_info["weight_min"],
+                run_info["weight_max"]
+        ))
+
+        # If no row is found, need to add it and get id.
+        if curs.rowcount < 1:
+            if self.__debug:
+                print "DEBUG: Row did not exist. Would have inserted row."
+
+            curs.execute("""INSERT INTO run_config (
+                    networks_id,
+                    trails_id,
+                    mutate_id,
+                    generations,
+                    population,
+                    moves_limit,
+                    elite_count,
+                    p_mutate,
+                    p_crossover,
+                    weight_min,
+                    weight_max
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id;""", (
+                    run_info["networks_id"],
+                    run_info["trails_id"],
+                    run_info["mutate_id"],
+                    run_info["generations"],
+                    run_info["population"],
+                    run_info["moves_limit"],
+                    run_info["elite_count"],
+                    run_info["p_mutate"],
+                    run_info["p_crossover"],
+                    run_info["weight_min"],
+                    run_info["weight_max"]
+            ))
+        elif self.__debug:
+            print "DEBUG: Row was found!"
+
+        # Get the run_id from either first search or second insert.
+        run_id = curs.fetchone()[0]
+
+        if not self.__debug:
+            conn.commit()
+        else:
+            conn.rollback()
+            print "DEBUG: id of the row was {0}.".format(run_id)
+
+        curs.close()
+        conn.close()
+
+        return run_id
+
     def recordRun(self, run_info, gen_info):
         conn = psycopg2.connect(self.__dsn)
         curs = conn.cursor()
