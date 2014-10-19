@@ -11,10 +11,7 @@ addons:
 # command to install dependencies
 install: "pip install -r requirements.txt"
 # environment variables
-env: PSYCOPG2_DB_HOST=localhost
-env: PSYCOPG2_DB_DB=ga_runner_testing
-env: PSYCOPG2_DB_USER=postgres
-env: PSYCOPG2_DB_PASS=
+env: PSYCOPG2_DB_HOST=localhost PSYCOPG2_DB_DB=ga_runner_testing PSYCOPG2_DB_USER=postgres PSYCOPG2_DB_PASS=
 # commands to run before the tests
 before_script:
     - psql -c 'create database ga_runner_testing;' -U postgres
