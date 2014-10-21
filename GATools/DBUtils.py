@@ -215,6 +215,8 @@ class DBUtils:
         curs.close()
         conn.close()
 
+        return run_id
+
 
     def getTrailData(self, trailID):
         with self.__getCursor() as curs:

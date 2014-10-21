@@ -1,12 +1,15 @@
 import datetime
 from deap import algorithms, base, creator, tools
-import json
 import logging
 import numpy as np
 import os
-import pickle
+try:
+   import cPickle as pickle
+except:
+   import pickle
 import random
 import re
+from scipy.stats import mode
 import scoop
 import socket
 import sys
@@ -33,12 +36,13 @@ creator.create("Individual", list, fitness=creator.FitnessMulti)
 # Some constants
 P_BIT_MUTATE    = 0.05
 
-def __singleMazeTask(individual, moves, trail_matrix, trail_name, trail_rot,
-    pb_filename, detailed_stats=False):
-    an = AgentNetwork()
-    an.readNetworkFromFile(pb_filename)
-    at = AgentTrail()
-    at.readTrailInstant(trail_matrix, trail_name, trail_rot)
+def __singleMazeTask(individual, moves, network, trail,
+    gen=None, record=None):
+
+    start_time = datetime.datetime.now()
+
+    an = pickle.loads(network)
+    at = pickle.loads(trail)
 
     an.updateParameters(individual)
 
@@ -58,10 +62,30 @@ def __singleMazeTask(individual, moves, trail_matrix, trail_name, trail_rot,
         else:
             at.noMove()
 
-    if detailed_stats == True:
-        return (at.getFoodConsumed(), at.getNumMoves(), at.getMovesStats())
-    else:
+    if gen is None:
         return (at.getFoodConsumed(), at.getNumMoves())
+    else:
+        this_move_stats = at.getMovesStats()
+
+        record_info                  = {}
+        record_info["gen"]           = gen - 1
+        record_info["runtime"]       = (datetime.datetime.now() -
+                start_time)
+        record_info["food_max"]      = record["food"]["max"]
+        record_info["food_min"]      = record["food"]["min"]
+        record_info["food_avg"]      = record["food"]["avg"]
+        record_info["food_std"]      = record["food"]["std"]
+        record_info["moves_max"]     = record["moves"]["max"]
+        record_info["moves_min"]     = record["moves"]["min"]
+        record_info["moves_avg"]     = record["moves"]["avg"]
+        record_info["moves_std"]     = record["moves"]["std"]
+        record_info["moves_left"]    = this_move_stats["left"]
+        record_info["moves_right"]   = this_move_stats["right"]
+        record_info["moves_forward"] = this_move_stats["forward"]
+        record_info["moves_none"]    = this_move_stats["none"]
+        record_info["elite"]         = np.array(individual).tolist()
+
+        return (gen, record_info)
 
 def main(args):
     run_date = time.time()
@@ -118,7 +142,9 @@ def main(args):
     for curr_repeat in range(0, args.repeat):
         repeat_start_time = datetime.datetime.now()
 
-        gens_stat_list = []
+        gens_stat_list = [0] * args.generations
+        # Create an empty array to store the launches for SCOOP.
+        launches = []
 
         # Prepare the array for storing hall of fame.
         hof_array = np.zeros((args.generations,
@@ -138,9 +164,13 @@ def main(args):
         db_trail_name,
         init_rot) = pgdb.getTrailData(args.trail)
 
+        an_temp = AgentNetwork()
+        an_temp.readNetworkFromFile(temp_f_network)
+        at_temp = AgentTrail()
+        at_temp.readTrailInstant(data_matrix, db_trail_name, init_rot)
+
         toolbox.register("evaluate", __singleMazeTask, moves=args.moves,
-            trail_matrix=data_matrix, trail_name=db_trail_name,
-            trail_rot=init_rot, pb_filename=temp_f_network)
+            network=pickle.dumps(an_temp), trail=pickle.dumps(at_temp))
         toolbox.register("mate", tools.cxTwoPoint)
         toolbox.register("mutate", tools.mutFlipBit, indpb=P_BIT_MUTATE)
         toolbox.register("select", tools.selTournament,
@@ -157,6 +187,7 @@ def main(args):
         mstats.register("avg", np.mean)
         mstats.register("max", np.max)
         mstats.register("std", np.std)
+        mstats.register("mode", mode)
 
         # Record the start of this run.
         log_time = datetime.datetime.now()
@@ -192,44 +223,22 @@ def main(args):
             # Calculate the percent done for the progress bar.
             percent_done = int((float(gen) / float(args.generations)) * 100)
 
-            # Record the statistics for this run.
-            elite_food, elite_moves, this_move_stats = (
-            __singleMazeTask(
-                individual=tools.selBest(population, k=1)[0],
-                moves=args.moves,
-                trail_matrix=data_matrix,
-                trail_name=temp_f_network,
-                trail_rot=init_rot,
-                pb_filename=temp_f_network,
-                detailed_stats=True))
+            logging.debug("Completed generation {0}".format(gen))
 
-            logging.debug("Elite Gen {0} - Food: {1} Moves: {2}".format(
+            hof_indiv = np.array(tools.selBest(population, k=1)[0])
+
+            hof_array[gen - 1] = hof_indiv
+
+            # Add the hall of fame to launches.
+            launches.append(
+                scoop.futures.submit(__singleMazeTask,
+                hof_indiv,
+                args.moves,
+                pickle.dumps(an_temp),
+                pickle.dumps(at_temp),
                 gen,
-                elite_food,
-                elite_moves))
-
-            record_info                  = {}
-            record_info["gen"]           = gen - 1
-            record_info["runtime"]       = (datetime.datetime.now() -
-                    gen_start_time)
-            record_info["food_max"]      = record["food"]["max"]
-            record_info["food_min"]      = record["food"]["min"]
-            record_info["food_avg"]      = record["food"]["avg"]
-            record_info["food_std"]      = record["food"]["std"]
-            record_info["moves_max"]     = record["moves"]["max"]
-            record_info["moves_min"]     = record["moves"]["min"]
-            record_info["moves_avg"]     = record["moves"]["avg"]
-            record_info["moves_std"]     = record["moves"]["std"]
-            record_info["moves_left"]    = this_move_stats["left"]
-            record_info["moves_right"]   = this_move_stats["right"]
-            record_info["moves_forward"] = this_move_stats["forward"]
-            record_info["moves_none"]    = this_move_stats["none"]
-            record_info["elite"]         = np.array(
-                    tools.selBest(population, k=1)[0]).tolist()
-
-            gens_stat_list.append(record_info)
-
-            hof_array[gen - 1] = np.array(tools.selBest(population, k=1)[0])
+                record)
+            )
 
             # Update the progress bar
             if pbar:
@@ -237,29 +246,37 @@ def main(args):
                     (float(curr_repeat)) / (float(args.repeat)))
                 pbar.update(bar_done_val * 100)
 
+        # Evaluate the Hall of Fame individual for each generation here
+        # in a multithreaded fashion to speed things up.
+        for this_future in scoop.futures.as_completed(launches):
+            result = this_future.result()
+            gens_stat_list[result[0] - 1] = result[1]
+
         # Record the statistics on this run.
+        run_info = {}
+
+        run_info["trails_id"]    = args.trail
+        run_info["networks_id"]  = args.network
+        run_info["mutate_id"]    = 1 # Only one type of mutate for now.
+        run_info["host_type_id"] = 1 # Only one host type for now.
+        run_info["run_date"]     = log_time
+        run_info["hostname"]     = socket.getfqdn()
+        run_info["generations"]  = args.generations
+        run_info["population"]   = args.population
+        run_info["moves_limit"]  = args.moves
+        run_info["elite_count"]  = args.elite_count
+        run_info["p_mutate"]     = args.prob_mutate
+        run_info["p_crossover"]  = args.prob_crossover
+        run_info["weight_min"]   = args.weight_min
+        run_info["weight_max"]   = args.weight_max
+        run_info["debug"]        = args.debug
+        run_info["runtime"]      = (datetime.datetime.now() -
+            repeat_start_time)
+
         if not args.disable_db:
-            run_info = {}
-
-            run_info["trails_id"]    = args.trail
-            run_info["networks_id"]  = args.network
-            run_info["mutate_id"]    = 1 # Only one type of mutate for now.
-            run_info["host_type_id"] = 1 # Only one host type for now.
-            run_info["run_date"]     = log_time
-            run_info["hostname"]     = socket.getfqdn()
-            run_info["generations"]  = args.generations
-            run_info["population"]   = args.population
-            run_info["moves_limit"]  = args.moves
-            run_info["elite_count"]  = args.elite_count
-            run_info["p_mutate"]     = args.prob_mutate
-            run_info["p_crossover"]  = args.prob_crossover
-            run_info["weight_min"]   = args.weight_min
-            run_info["weight_max"]   = args.weight_max
-            run_info["debug"]        = args.debug
-            run_info["runtime"]      = (datetime.datetime.now() -
-                repeat_start_time)
-
-            pgdb.recordRun(run_info, gens_stat_list)
+            run_id = pgdb.recordRun(run_info, gens_stat_list)
+        else:
+            run_id = -1
 
     # Calculate and display the total runtime
     if pbar:
@@ -269,14 +286,25 @@ def main(args):
     # Delete the temporary file
     os.remove(temp_f_network)
 
-    logging.info("Run T{0} G{1} P{2} N{3} M{4} completed in {5}".format(
-        args.trail,
-        args.generations,
-        args.population,
-        args.network,
-        args.moves,
-        time.strftime('%H:%M:%S', time.gmtime(total_time_s))))
-
+    if run_id > 0:
+        logging.info("Run ID {0} T{1} G{2} P{3}"
+            " N{4} M{5} completed in {6}".format(
+                run_id,
+                args.trail,
+                args.generations,
+                args.population,
+                args.network,
+                args.moves,
+                time.strftime('%H:%M:%S', time.gmtime(total_time_s))))
+    else:
+        logging.info("UNLOGGED Run T{0} G{1} P{2}"
+            " N{3} M{4} completed in {5}".format(
+                args.trail,
+                args.generations,
+                args.population,
+                args.network,
+                args.moves,
+                time.strftime('%H:%M:%S', time.gmtime(total_time_s))))
 
 if __name__ == "__main__":
     args = utils.parse_args()

@@ -49,6 +49,7 @@ CREATE TABLE networks (
     id serial  NOT NULL,
     name text  NOT NULL,
     net bytea  NOT NULL,
+    dl_length int NOT NULL,
     CONSTRAINT networks_pk PRIMARY KEY (id)
 );
 

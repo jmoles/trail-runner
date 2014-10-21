@@ -31,16 +31,18 @@ class create:
                 id serial  NOT NULL,
                 name text  NOT NULL,
                 net bytea  NOT NULL,
+                dl_length int NOT NULL,
                 CONSTRAINT networks_pk PRIMARY KEY (id));
 
                 """.format(table))
 
         # Populate the table.
-        query_s += "INSERT INTO {0} (id, name, net) VALUES (".format(table)
+        query_s += "INSERT INTO {0} (id, name, net, dl_length) VALUES (".format(table)
         for curr_d in create.__prepareNetworks():
-            query_s += "\n    (DEFAULT, {0}, {1}),".format(
+            query_s += "\n    (DEFAULT, {0}, {1}, {2}),".format(
             curr_d["name"],
-            curr_d["network"])
+            curr_d["network"],
+            curr_d["dl_length"])
 
         query_s = query_s.rstrip(",")
 
@@ -65,6 +67,7 @@ class create:
                     recurrent=True,
                     in_to_out_connect=True,
                     name=net_d["name"])))
+        net_d["dl_length"] = 0
         ret_d.append(net_d)
 
         net_d = {}
@@ -77,6 +80,7 @@ class create:
                     recurrent=True,
                     in_to_out_connect=True,
                     name=net_d["name"])))
+        net_d["dl_length"] = 0
         ret_d.append(net_d)
 
         net_d = {}
@@ -89,6 +93,7 @@ class create:
                     recurrent=True,
                     in_to_out_connect=True,
                     name=net_d["name"])))
+        net_d["dl_length"] = 0
         ret_d.append(net_d)
 
         net_d = {}
@@ -101,6 +106,7 @@ class create:
                     recurrent=True,
                     in_to_out_connect=True,
                     name=net_d["name"])))
+        net_d["dl_length"] = 0
         ret_d.append(net_d)
 
         for idx in range(2, 11):
@@ -113,6 +119,7 @@ class create:
                     hidden_count=5,
                     output_count=4,
                     name=net_d["name"])))
+            net_d["dl_length"] = idx
             ret_d.append(net_d)
 
         for idx in range(2, 11):
@@ -125,6 +132,7 @@ class create:
                     hidden_count=5,
                     output_count=3,
                     name=net_d["name"])))
+            net_d["dl_length"] = idx
             ret_d.append(net_d)
 
         for idx in range(2, 11):
@@ -137,6 +145,7 @@ class create:
                     hidden_count=1,
                     output_count=4,
                     name=net_d["name"])))
+            net_d["dl_length"] = idx
             ret_d.append(net_d)
 
         for idx in range(2, 11):
@@ -149,6 +158,7 @@ class create:
                     hidden_count=1,
                     output_count=3,
                     name=net_d["name"])))
+            net_d["dl_length"] = idx
             ret_d.append(net_d)
 
         for idx in range(2, 11):
@@ -161,6 +171,7 @@ class create:
                     hidden_count=5,
                     output_count=3,
                     name=net_d["name"])))
+            net_d["dl_length"] = idx
             ret_d.append(net_d)
 
         for idx in range(2, 11):
@@ -173,6 +184,7 @@ class create:
                     hidden_count=1,
                     output_count=3,
                     name=net_d["name"])))
+            net_d["dl_length"] = idx
             ret_d.append(net_d)
 
         return ret_d
