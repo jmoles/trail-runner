@@ -114,3 +114,8 @@ class utils:
                 "must be specified when using NSGA2 or SPEA2 selection type "
                 "and must be less than the population size!");
             sys.exit(1)
+
+        if (args.selection == 3 or args.selection == 4):
+            # These two are presently broken.
+            logging.critical("These two are broken for now! Sorry!");
+            sys.exit(1)
