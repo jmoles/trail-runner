@@ -71,10 +71,11 @@ CREATE TABLE run_config (
     networks_id int  NOT NULL,
     trails_id int  NOT NULL,
     mutate_id int  NOT NULL,
-    generations smallint  NOT NULL,
-    population smallint  NOT NULL,
-    moves_limit smallint  NOT NULL,
-    elite_count smallint  NOT NULL,
+    selection_id int NOT NULL,
+    generations int  NOT NULL,
+    population int  NOT NULL,
+    moves_limit int  NOT NULL,
+    sel_tourn_size int,
     p_mutate real  NOT NULL,
     p_crossover real  NOT NULL,
     weight_min real  NOT NULL,
@@ -90,6 +91,14 @@ CREATE TABLE trails (
     init_rot smallint  NOT NULL,
     trail_data smallint[][]  NOT NULL,
     CONSTRAINT trails_pk PRIMARY KEY (id)
+);
+
+
+-- Table: selection
+CREATE TABLE selection (
+    id serial NOT NULL,
+    name text NOT NULL,
+    CONSTRAINT selection_pk PRIMARY KEY (id)
 );
 
 
@@ -129,6 +138,12 @@ ALTER TABLE run_config ADD CONSTRAINT run_config_trails
     REFERENCES trails (id) NOT DEFERRABLE
 ;
 
+
+ALTER TABLE run_config ADD CONSTRAINT run_config_selection
+    FOREIGN KEY (selection_id)
+    REFERENCES selection (id) NOT DEFERRABLE
+;
+
 -- Reference:  run_host_configs (table: run)
 
 
@@ -145,11 +160,40 @@ ALTER TABLE run ADD CONSTRAINT run_run_config
     REFERENCES run_config (id) NOT DEFERRABLE
 ;
 
+-- Views
+CREATE OR REPLACE VIEW run_config_full AS
+SELECT run_config.id,
+run_config.trails_id,
+run_config.networks_id,
+run_config.mutate_id,
+run_config.selection_id,
+run_config.generations,
+run_config.population,
+run_config.moves_limit,
+run_config.sel_tourn_size,
+run_config.p_mutate,
+run_config.p_crossover,
+run_config.weight_min,
+run_config.weight_max,
+networks.name AS network_name,
+networks.dl_length,
+trails.name AS trail_name,
+trails.moves,
+trails.init_rot,
+trails.trail_data,
+selection.name AS select_name,
+mutate.name AS mutate_name
+FROM run_config
+INNER JOIN networks
+ON run_config.networks_id = networks.id
+INNER JOIN trails
+ON run_config.trails_id = trails.id
+INNER JOIN selection
+ON run_config.selection_id = selection.id
+INNER JOIN mutate
+ON run_config.mutate_id = mutate.id;
 
-
-
-
-
+-- Add data
 INSERT INTO trails (id, name, moves, init_rot, trail_data) VALUES
         (DEFAULT, 'Sample L Left 5x5', 15, 0, '{{0, 0, 0, 0, 0}, {1, 1, 7, 1, 0}, {0, 0, 0, 1, 0}, {0, 0, 0, 1, 0}, {0, 0, 0, 2, 0}}'),
         (DEFAULT, 'Sample L Left 7x6', 17, 0, '{{0, 0, 0, 0, 0, 0, 0}, {1, 7, 1, 7, 0, 1, 1}, {0, 0, 0, 1, 0, 7, 0}, {0, 0, 0, 1, 0, 1, 0}, {0, 0, 0, 1, 0, 1, 0}, {0, 0, 0, 2, 0, 0, 0}}'),
@@ -170,5 +214,37 @@ INSERT INTO mutate (id, name, params) VALUES
 
 INSERT INTO host_configs (id, name) VALUES
 	(DEFAULT, 'cpu');
+
+INSERT INTO selection (id, name) VALUES
+          (1, 'Tournament'),
+          (2, 'Roulette'),
+          (3, 'NSGA2'),
+          (4, 'SPEA2'),
+          (5, 'Random'),
+          (6, 'Best'),
+          (7, 'Worst'),
+          (8, 'TournamentDCD');
+
+-- Create Indexes
+-- Table run_config index
+CREATE INDEX idx_sel_tourn_size_rc ON run_config USING btree (sel_tourn_size);
+CREATE INDEX idx_generations_rc ON run_config USING btree (generations);
+CREATE INDEX idx_moves_limit_rc ON run_config USING btree (moves_limit);
+CREATE INDEX idx_mutate_id_rc ON run_config USING btree (mutate_id);
+CREATE INDEX idx_networks_id_rc ON run_config USING btree (networks_id);
+CREATE INDEX idx_p_crossover_rc ON run_config USING btree (p_crossover);
+CREATE INDEX idx_p_mutate_rc ON run_config USING btree (p_mutate);
+CREATE INDEX idx_population_rc ON run_config USING btree (population);
+CREATE INDEX idx_trails_id_rc ON run_config USING btree (trails_id);
+CREATE INDEX idx_weight_max_rc ON run_config USING btree (weight_max);
+CREATE INDEX idx_weight_min_rc ON run_config USING btree (weight_min);
+CREATE INDEX idx_selection_id_rc ON run_config USING btree (selection_id);
+
+-- Table run index
+CREATE INDEX idx_run_config_id ON run USING btree (run_config_id);
+
+-- Table generations
+CREATE INDEX idx_run_id ON generations USING btree (run_id);
+
 
 -- End of file.

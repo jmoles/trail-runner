@@ -35,6 +35,18 @@ creator.create("Individual", list, fitness=creator.FitnessMulti)
 
 # Some constants
 P_BIT_MUTATE    = 0.05
+# This is tied to values in database.
+SELECTION_MODES = [
+    None,
+    tools.selTournament,
+    tools.selRoulette,
+    tools.selNSGA2,
+    tools.selSPEA2,
+    tools.selRandom,
+    tools.selBest,
+    tools.selWorst,
+    tools.selTournamentDCD,
+]
 
 def __singleMazeTask(individual, moves, network, trail,
     gen=None, record=None):
@@ -75,10 +87,12 @@ def __singleMazeTask(individual, moves, network, trail,
         record_info["food_min"]      = record["food"]["min"]
         record_info["food_avg"]      = record["food"]["avg"]
         record_info["food_std"]      = record["food"]["std"]
+        record_info["food_mode"]     = record["food"]["mode"]
         record_info["moves_max"]     = record["moves"]["max"]
         record_info["moves_min"]     = record["moves"]["min"]
         record_info["moves_avg"]     = record["moves"]["avg"]
         record_info["moves_std"]     = record["moves"]["std"]
+        record_info["moves_mode"]    = record["moves"]["mode"]
         record_info["moves_left"]    = this_move_stats["left"]
         record_info["moves_right"]   = this_move_stats["right"]
         record_info["moves_forward"] = this_move_stats["forward"]
@@ -173,8 +187,14 @@ def main(args):
             network=pickle.dumps(an_temp), trail=pickle.dumps(at_temp))
         toolbox.register("mate", tools.cxTwoPoint)
         toolbox.register("mutate", tools.mutFlipBit, indpb=P_BIT_MUTATE)
-        toolbox.register("select", tools.selTournament,
-            tournsize=args.elite_count)
+        if args.selection == 1:
+            # Selection is tournment. Must use argument from user.
+            toolbox.register("select", tools.selTournament,
+                tournsize=args.tournament_size)
+        else:
+            # Selection is something else.
+            # Indexes start with 1 in Postgres so need to offset by 1 here.
+            toolbox.register("select", SELECTION_MODES[args.selection])
 
         # Start a new evolution
         population = toolbox.population(n=args.population)
@@ -197,12 +217,16 @@ def main(args):
 
             gen_start_time = datetime.datetime.now()
 
-            # Select the next generation individuals
-            offspring = toolbox.select(population, len(population))
+            # Select the next generation individuals and vary
+            # unless they are the first generation.
+            if gen == 1:
+                offspring = population
+            else:
+                offspring = toolbox.select(population, k=len(population))
 
-            # Vary the pool of individuals
-            offspring = algorithms.varAnd(offspring, toolbox,
-                cxpb=args.prob_crossover, mutpb=args.prob_mutate)
+                # Vary the pool of individuals
+                offspring = algorithms.varAnd(offspring, toolbox,
+                    cxpb=args.prob_crossover, mutpb=args.prob_mutate)
 
             # Evaluate the individuals with an invalid fitness
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
@@ -257,14 +281,16 @@ def main(args):
 
         run_info["trails_id"]    = args.trail
         run_info["networks_id"]  = args.network
-        run_info["mutate_id"]    = 1 # Only one type of mutate for now.
+        run_info["selection_id"] = args.selection
+        run_info["mutate_id"]    = args.mutate_type
         run_info["host_type_id"] = 1 # Only one host type for now.
         run_info["run_date"]     = log_time
         run_info["hostname"]     = socket.getfqdn()
         run_info["generations"]  = args.generations
         run_info["population"]   = args.population
         run_info["moves_limit"]  = args.moves
-        run_info["elite_count"]  = args.elite_count
+        if args.selection == 1:
+            run_info["sel_tourn_size"]  = args.tournament_size
         run_info["p_mutate"]     = args.prob_mutate
         run_info["p_crossover"]  = args.prob_crossover
         run_info["weight_min"]   = args.weight_min

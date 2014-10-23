@@ -57,14 +57,16 @@ class DBUtils:
         # with keys of "trail", "network", "mutate".
 
         with self.__getCursor() as curs:
-            curs.execute("SELECT trails.id, networks.id, mutate.id "
-            "FROM trails, networks, mutate;")
+            curs.execute("SELECT trails.id, networks.id,"
+            "mutate.id, selection.id "
+            "FROM trails, networks, mutate, selection;")
             results = curs.fetchall()
 
         return {
             "trail" : list(set([int(i[0]) for i in results])),
             "network" : list(set([int(i[1]) for i in results])),
-            "mutate" : list(set([int(i[2]) for i in results]))
+            "mutate" : list(set([int(i[2]) for i in results])),
+            "selection" : list(set([int(i[3]) for i in results])),
         }
 
     def getRunConfigID(self, run_info):
@@ -79,65 +81,130 @@ class DBUtils:
         conn = psycopg2.connect(self.__dsn)
         curs = conn.cursor()
 
-        curs.execute("""SELECT id
-            FROM run_config
-            WHERE
-            networks_id                    = %s AND
-            trails_id                      = %s AND
-            mutate_id                      = %s AND
-            generations                    = %s AND
-            population                     = %s AND
-            moves_limit                    = %s AND
-            elite_count                    = %s AND
-            round(p_mutate::numeric, 4)    = %s AND
-            round(p_crossover::numeric, 4) = %s AND
-            weight_min                     = %s AND
-            weight_max                     = %s
-            """, (
-                run_info["networks_id"],
-                run_info["trails_id"],
-                run_info["mutate_id"],
-                run_info["generations"],
-                run_info["population"],
-                run_info["moves_limit"],
-                run_info["elite_count"],
-                round(run_info["p_mutate"], 4),
-                round(run_info["p_crossover"], 4),
-                run_info["weight_min"],
-                run_info["weight_max"]
-        ))
+        if run_info["selection_id"] == 1:
+            # Search for a tournament style one.
+            curs.execute("""SELECT id
+                FROM run_config
+                WHERE
+                networks_id                    = %s AND
+                trails_id                      = %s AND
+                mutate_id                      = %s AND
+                selection_id                   = %s AND
+                generations                    = %s AND
+                population                     = %s AND
+                moves_limit                    = %s AND
+                sel_tourn_size                 = %s AND
+                round(p_mutate::numeric, 4)    = %s AND
+                round(p_crossover::numeric, 4) = %s AND
+                weight_min                     = %s AND
+                weight_max                     = %s
+                """, (
+                    run_info["networks_id"],
+                    run_info["trails_id"],
+                    run_info["mutate_id"],
+                    run_info["selection_id"],
+                    run_info["generations"],
+                    run_info["population"],
+                    run_info["moves_limit"],
+                    run_info["sel_tourn_size"],
+                    round(run_info["p_mutate"], 4),
+                    round(run_info["p_crossover"], 4),
+                    run_info["weight_min"],
+                    run_info["weight_max"]
+            ))
+        else:
+            # Not a tournament style search.
+            curs.execute("""SELECT id
+                FROM run_config
+                WHERE
+                networks_id                    = %s AND
+                trails_id                      = %s AND
+                mutate_id                      = %s AND
+                selection_id                   = %s AND
+                generations                    = %s AND
+                population                     = %s AND
+                moves_limit                    = %s AND
+                round(p_mutate::numeric, 4)    = %s AND
+                round(p_crossover::numeric, 4) = %s AND
+                weight_min                     = %s AND
+                weight_max                     = %s
+                """, (
+                    run_info["networks_id"],
+                    run_info["trails_id"],
+                    run_info["mutate_id"],
+                    run_info["selection_id"],
+                    run_info["generations"],
+                    run_info["population"],
+                    run_info["moves_limit"],
+                    round(run_info["p_mutate"], 4),
+                    round(run_info["p_crossover"], 4),
+                    run_info["weight_min"],
+                    run_info["weight_max"]
+            ))
 
         # If no row is found, need to add it and get id.
         if curs.rowcount < 1:
             if self.__debug:
                 print "DEBUG: Row did not exist. Would have inserted row."
 
-            curs.execute("""INSERT INTO run_config (
-                    networks_id,
-                    trails_id,
-                    mutate_id,
-                    generations,
-                    population,
-                    moves_limit,
-                    elite_count,
-                    p_mutate,
-                    p_crossover,
-                    weight_min,
-                    weight_max
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id;""", (
-                    run_info["networks_id"],
-                    run_info["trails_id"],
-                    run_info["mutate_id"],
-                    run_info["generations"],
-                    run_info["population"],
-                    run_info["moves_limit"],
-                    run_info["elite_count"],
-                    run_info["p_mutate"],
-                    run_info["p_crossover"],
-                    run_info["weight_min"],
-                    run_info["weight_max"]
-            ))
+            if run_info["selection_id"] == 1:
+                # This is a tournament insert.
+                curs.execute("""INSERT INTO run_config (
+                        networks_id,
+                        trails_id,
+                        mutate_id,
+                        selection_id,
+                        generations,
+                        population,
+                        moves_limit,
+                        sel_tourn_size,
+                        p_mutate,
+                        p_crossover,
+                        weight_min,
+                        weight_max
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id;""", (
+                        run_info["networks_id"],
+                        run_info["trails_id"],
+                        run_info["mutate_id"],
+                        run_info["selection_id"],
+                        run_info["generations"],
+                        run_info["population"],
+                        run_info["moves_limit"],
+                        run_info["sel_tourn_size"],
+                        run_info["p_mutate"],
+                        run_info["p_crossover"],
+                        run_info["weight_min"],
+                        run_info["weight_max"]
+                ))
+            else:
+                # Not a tournament selection.
+                curs.execute("""INSERT INTO run_config (
+                        networks_id,
+                        trails_id,
+                        mutate_id,
+                        selection_id,
+                        generations,
+                        population,
+                        moves_limit,
+                        p_mutate,
+                        p_crossover,
+                        weight_min,
+                        weight_max
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id;""", (
+                        run_info["networks_id"],
+                        run_info["trails_id"],
+                        run_info["mutate_id"],
+                        run_info["selection_id"],
+                        run_info["generations"],
+                        run_info["population"],
+                        run_info["moves_limit"],
+                        run_info["p_mutate"],
+                        run_info["p_crossover"],
+                        run_info["weight_min"],
+                        run_info["weight_max"]
+                ))
         elif self.__debug:
             print "DEBUG: Row was found!"
 
