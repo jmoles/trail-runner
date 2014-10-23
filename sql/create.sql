@@ -80,6 +80,7 @@ CREATE TABLE run_config (
     p_crossover real  NOT NULL,
     weight_min real  NOT NULL,
     weight_max real  NOT NULL,
+    sel_elite_count int,
     CONSTRAINT run_config_pk PRIMARY KEY (id)
 );
 
@@ -182,7 +183,8 @@ trails.moves,
 trails.init_rot,
 trails.trail_data,
 selection.name AS select_name,
-mutate.name AS mutate_name
+mutate.name AS mutate_name,
+run_config.sel_elite_count
 FROM run_config
 INNER JOIN networks
 ON run_config.networks_id = networks.id
@@ -228,6 +230,7 @@ INSERT INTO selection (id, name) VALUES
 -- Create Indexes
 -- Table run_config index
 CREATE INDEX idx_sel_tourn_size_rc ON run_config USING btree (sel_tourn_size);
+CREATE INDEX idx_sel_elite_count_rc ON run_config USING btree (sel_elite_count);
 CREATE INDEX idx_generations_rc ON run_config USING btree (generations);
 CREATE INDEX idx_moves_limit_rc ON run_config USING btree (moves_limit);
 CREATE INDEX idx_mutate_id_rc ON run_config USING btree (mutate_id);

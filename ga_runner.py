@@ -221,6 +221,9 @@ def main(args):
             # unless they are the first generation.
             if gen == 1:
                 offspring = population
+            elif args.selection == 3 or args.selection == 4:
+                # TODO: Need to finish implementing this here.
+                offspring = toolbox.select(population, k=args.elite_count)
             else:
                 offspring = toolbox.select(population, k=len(population))
 
@@ -291,6 +294,8 @@ def main(args):
         run_info["moves_limit"]  = args.moves
         if args.selection == 1:
             run_info["sel_tourn_size"]  = args.tournament_size
+        elif args.selection == 3 or args.selection == 4:
+            run_info["sel_elite_count"] = args.elite_count
         run_info["p_mutate"]     = args.prob_mutate
         run_info["p_crossover"]  = args.prob_crossover
         run_info["weight_min"]   = args.weight_min

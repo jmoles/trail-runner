@@ -9,11 +9,12 @@ from DBUtils import DBUtils
 GENS_DEF        = 200
 POP_DEF         = 300
 MOVES_DEF       = 200
-TOURN_COUNT_DEF = -255
 P_MUTATE_DEF    = 0.2
 P_CROSSOVER_DEF = 0.5
 WEIGHT_MIN_DEF  = -5.0
 WEIGHT_MAX_DEF  = 5.0
+
+DEF_ERROR_VAL = -255
 
 class utils:
 
@@ -29,11 +30,11 @@ class utils:
             "of genetic algorithm evaluation.",
             formatter_class=argparse.RawTextHelpFormatter)
 
-        parser.add_argument("network", type=int, nargs="?",
+        parser.add_argument("network", type=int,
             metavar='network',
             help=textwrap.dedent("Network type to use."),
             choices=valid_db_opts["network"])
-        parser.add_argument("trail", type=int, nargs="?",
+        parser.add_argument("trail", type=int,
             metavar='trail',
             help="Trail to use.",
             choices=valid_db_opts["trail"])
@@ -84,8 +85,12 @@ class utils:
             help="Selection type to use.",
             choices=valid_db_opts["selection"])
         group.add_argument("--tournament-size", type=int,
-            default=TOURN_COUNT_DEF,
+            default=DEF_ERROR_VAL,
             help="If using tournament selection, the size of the tournament.")
+        group.add_argument("--elite-count", type=int,
+            default=DEF_ERROR_VAL,
+            help="If using NSGA2 or SPEA2 selection, the size elite passed "
+                "to next generation.")
 
         args = parser.parse_args()
 
@@ -102,4 +107,10 @@ class utils:
         if args.selection == 1 and args.tournament_size == -255:
             logging.critical("Tournament size (--tournament-size) "
                 "must be specified when using tournament selection type!");
+            sys.exit(1)
+        elif ((args.selection == 3 or args.selection == 4) and
+            args.elite_count == -255 or args.elite_count > args.population):
+            logging.critical("Elite count (--elite-count) "
+                "must be specified when using NSGA2 or SPEA2 selection type "
+                "and must be less than the population size!");
             sys.exit(1)

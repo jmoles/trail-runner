@@ -112,6 +112,37 @@ class DBUtils:
                     run_info["weight_min"],
                     run_info["weight_max"]
             ))
+        elif run_info["selection_id"] == 3 or run_info["selection_id"] == 4:
+            # Not a tournament style search.
+            curs.execute("""SELECT id
+                FROM run_config
+                WHERE
+                networks_id                    = %s AND
+                trails_id                      = %s AND
+                mutate_id                      = %s AND
+                selection_id                   = %s AND
+                generations                    = %s AND
+                population                     = %s AND
+                moves_limit                    = %s AND
+                round(p_mutate::numeric, 4)    = %s AND
+                round(p_crossover::numeric, 4) = %s AND
+                weight_min                     = %s AND
+                weight_max                     = %s AND
+                sel_elite_count                = %s
+                """, (
+                    run_info["networks_id"],
+                    run_info["trails_id"],
+                    run_info["mutate_id"],
+                    run_info["selection_id"],
+                    run_info["generations"],
+                    run_info["population"],
+                    run_info["moves_limit"],
+                    round(run_info["p_mutate"], 4),
+                    round(run_info["p_crossover"], 4),
+                    run_info["weight_min"],
+                    run_info["weight_max"],
+                    run_info["sel_elite_count"]
+            ))
         else:
             # Not a tournament style search.
             curs.execute("""SELECT id
@@ -172,6 +203,36 @@ class DBUtils:
                         run_info["population"],
                         run_info["moves_limit"],
                         run_info["sel_tourn_size"],
+                        run_info["p_mutate"],
+                        run_info["p_crossover"],
+                        run_info["weight_min"],
+                        run_info["weight_max"]
+                ))
+            elif run_info["selection_id"] == 3 or run_info["selection_id"] == 4:
+                # Insert using one of two algorithms with elitism.
+                curs.execute("""INSERT INTO run_config (
+                        networks_id,
+                        trails_id,
+                        mutate_id,
+                        selection_id,
+                        generations,
+                        population,
+                        moves_limit,
+                        sel_elite_count,
+                        p_mutate,
+                        p_crossover,
+                        weight_min,
+                        weight_max
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id;""", (
+                        run_info["networks_id"],
+                        run_info["trails_id"],
+                        run_info["mutate_id"],
+                        run_info["selection_id"],
+                        run_info["generations"],
+                        run_info["population"],
+                        run_info["moves_limit"],
+                        run_info["sel_elite_count"],
                         run_info["p_mutate"],
                         run_info["p_crossover"],
                         run_info["weight_min"],
