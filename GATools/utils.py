@@ -101,5 +101,5 @@ class utils:
 
         if args.selection == 1 and args.tournament_size == -255:
             logging.critical("Tournament size (--tournament-size) "
-                "must be specified when using tournmanet selection type!");
+                "must be specified when using tournament selection type!");
             sys.exit(1)
