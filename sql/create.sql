@@ -72,6 +72,7 @@ CREATE TABLE run_config (
     trails_id int  NOT NULL,
     mutate_id int  NOT NULL,
     selection_id int NOT NULL,
+    variations_id int NOT NULL,
     generations int  NOT NULL,
     population int  NOT NULL,
     moves_limit int  NOT NULL,
@@ -80,7 +81,8 @@ CREATE TABLE run_config (
     p_crossover real  NOT NULL,
     weight_min real  NOT NULL,
     weight_max real  NOT NULL,
-    sel_elite_count int,
+    lambda int,
+    algorithm_ver int NOT NULL,
     CONSTRAINT run_config_pk PRIMARY KEY (id)
 );
 
@@ -102,7 +104,11 @@ CREATE TABLE selection (
     CONSTRAINT selection_pk PRIMARY KEY (id)
 );
 
-
+CREATE TABLE variations (
+    id serial NOT NULL,
+    name text NOT NULL,
+    CONSTRAINT variations_pk PRIMARY KEY (id)
+);
 
 
 
@@ -145,6 +151,11 @@ ALTER TABLE run_config ADD CONSTRAINT run_config_selection
     REFERENCES selection (id) NOT DEFERRABLE
 ;
 
+ALTER TABLE run_config ADD CONSTRAINT run_config_variations
+    FOREIGN KEY (variations_id)
+    REFERENCES variations (id) NOT DEFERRABLE
+;
+
 -- Reference:  run_host_configs (table: run)
 
 
@@ -184,7 +195,10 @@ trails.init_rot,
 trails.trail_data,
 selection.name AS select_name,
 mutate.name AS mutate_name,
-run_config.sel_elite_count
+run_config.lambda,
+run_config.variations_id,
+run_config.algorithm_ver,
+variations.name AS variations_name
 FROM run_config
 INNER JOIN networks
 ON run_config.networks_id = networks.id
@@ -193,7 +207,9 @@ ON run_config.trails_id = trails.id
 INNER JOIN selection
 ON run_config.selection_id = selection.id
 INNER JOIN mutate
-ON run_config.mutate_id = mutate.id;
+ON run_config.mutate_id = mutate.id
+INNER JOIN variations
+ON run_config.variations_id = variations.id;
 
 -- Add data
 INSERT INTO trails (id, name, moves, init_rot, trail_data) VALUES
@@ -227,10 +243,14 @@ INSERT INTO selection (id, name) VALUES
           (7, 'Worst'),
           (8, 'TournamentDCD');
 
+INSERT INTO variations (id, name) VALUES
+    (DEFAULT, 'varAnd'),
+    (DEFAULT, 'varOr');
+
 -- Create Indexes
 -- Table run_config index
 CREATE INDEX idx_sel_tourn_size_rc ON run_config USING btree (sel_tourn_size);
-CREATE INDEX idx_sel_elite_count_rc ON run_config USING btree (sel_elite_count);
+CREATE INDEX idx_lambda_rc ON run_config USING btree (lambda);
 CREATE INDEX idx_generations_rc ON run_config USING btree (generations);
 CREATE INDEX idx_moves_limit_rc ON run_config USING btree (moves_limit);
 CREATE INDEX idx_mutate_id_rc ON run_config USING btree (mutate_id);
@@ -242,6 +262,9 @@ CREATE INDEX idx_trails_id_rc ON run_config USING btree (trails_id);
 CREATE INDEX idx_weight_max_rc ON run_config USING btree (weight_max);
 CREATE INDEX idx_weight_min_rc ON run_config USING btree (weight_min);
 CREATE INDEX idx_selection_id_rc ON run_config USING btree (selection_id);
+CREATE INDEX idx_variations_id_rc ON run_config USING btree (variations_id);
+CREATE INDEX idx_lambda_rc ON run_config USING btree (lambda);
+CREATE INDEX idx_algorithm_ver_rc ON run_config USING btree (algorithm_ver);
 
 -- Table run index
 CREATE INDEX idx_run_config_id ON run USING btree (run_config_id);

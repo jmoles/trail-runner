@@ -212,24 +212,45 @@ def main(args):
         # Record the start of this run.
         log_time = datetime.datetime.now()
 
+        # Evaluate and record the first generation here.
+        invalid_ind = [ind for ind in population if not ind.fitness.valid]
+        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+        for ind, fit in zip(invalid_ind, fitnesses):
+            ind.fitness.values = fit
+
+        # Determine the current generations statistics.
+        record = mstats.compile(population)
+
+        logging.debug("Completed generation 1")
+
+        hof_indiv = np.array(tools.selBest(population, k=1)[0])
+        hof_array[0] = hof_indiv
+
+        # Add the hall of fame to launches.
+        launches.append(
+            scoop.futures.submit(__singleMazeTask,
+            hof_indiv,
+            args.moves,
+            pickle.dumps(an_temp),
+            pickle.dumps(at_temp),
+            1,
+            record)
+        )
+
         # Begin the generational process
-        for gen in range(1, args.generations + 1):
-
-            gen_start_time = datetime.datetime.now()
-
-            # Select the next generation individuals and vary
-            # unless they are the first generation.
-            if gen == 1:
-                offspring = population
-            elif args.selection == 3 or args.selection == 4:
-                # TODO: Need to finish implementing this here.
-                offspring = toolbox.select(population, k=args.elite_count)
-            else:
-                offspring = toolbox.select(population, k=len(population))
-
-                # Vary the pool of individuals
-                offspring = algorithms.varAnd(offspring, toolbox,
+        for gen in range(2, args.generations + 1):
+            # Vary the pool of individuals
+            if args.variation == 1:
+                offspring = algorithms.varAnd(population, toolbox,
                     cxpb=args.prob_crossover, mutpb=args.prob_mutate)
+            elif args.variation == 2:
+                offspring = algorithms.varOr(population, toolbox,
+                    lambda_=args.lambda_,
+                    cxpb=args.prob_crossover, mutpb=args.prob_mutate)
+            else:
+                logging.critical("Something is really wrong! "
+                    "Reached an invalid variation type!")
+                sys.exit(5)
 
             # Evaluate the individuals with an invalid fitness
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
@@ -242,7 +263,10 @@ def main(args):
                 halloffame.update(offspring)
 
             # Replace the current population by the offspring
-            population[:] = offspring
+            if args.variation == 2:
+                population[:] = toolbox.select(offspring, args.population)
+            else:
+                population[:] = offspring
 
             # Determine the current generations statistics.
             record = mstats.compile(population)
@@ -287,20 +311,21 @@ def main(args):
         run_info["selection_id"] = args.selection
         run_info["mutate_id"]    = args.mutate_type
         run_info["host_type_id"] = 1 # Only one host type for now.
+        run_info["variations_id"] = args.variation
         run_info["run_date"]     = log_time
         run_info["hostname"]     = socket.getfqdn()
         run_info["generations"]  = args.generations
         run_info["population"]   = args.population
         run_info["moves_limit"]  = args.moves
-        if args.selection == 1:
-            run_info["sel_tourn_size"]  = args.tournament_size
-        elif args.selection == 3 or args.selection == 4:
-            run_info["sel_elite_count"] = args.elite_count
+        run_info["sel_tourn_size"]  = args.tournament_size
+        run_info["lambda"] = args.lambda_
         run_info["p_mutate"]     = args.prob_mutate
         run_info["p_crossover"]  = args.prob_crossover
         run_info["weight_min"]   = args.weight_min
         run_info["weight_max"]   = args.weight_max
         run_info["debug"]        = args.debug
+        # Version for if anything changes in python GA Algorithm
+        run_info["algorithm_ver"] = 2
         run_info["runtime"]      = (datetime.datetime.now() -
             repeat_start_time)
 

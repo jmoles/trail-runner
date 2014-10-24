@@ -14,7 +14,7 @@ P_CROSSOVER_DEF = 0.5
 WEIGHT_MIN_DEF  = -5.0
 WEIGHT_MAX_DEF  = 5.0
 
-DEF_ERROR_VAL = -255
+DEF_ERROR_VAL = None
 
 class utils:
 
@@ -38,6 +38,14 @@ class utils:
             metavar='trail',
             help="Trail to use.",
             choices=valid_db_opts["trail"])
+        parser.add_argument("population", type=int,
+            metavar=u"\u03BC",
+            help="Size of the population. Serves as "
+                u"\u03BC" " in varOr type runs.")
+        parser.add_argument("moves",
+            type=int,
+            metavar="moves",
+            help="Maximum moves for agent.")
 
         group = parser.add_argument_group('Application Options')
         group.add_argument("--disable-db",
@@ -56,12 +64,14 @@ class utils:
         group.add_argument("-g", "--generations", type=int, nargs="?",
             default=GENS_DEF,
             help="Number of generations to run for.")
-        group.add_argument("-p", "--population", type=int, nargs="?",
-            default=POP_DEF,
-            help="Size of the population.")
-        group.add_argument("-m", "--moves", type=int, nargs="?",
-            default=MOVES_DEF,
-            help="Maximum moves for agent.")
+        group.add_argument("--variation", type=int,
+            default=1,
+            help="Variation type to use in DEAP.",
+            choices=valid_db_opts["variations"])
+        group.add_argument("--lambda_", type=int,
+            default=DEF_ERROR_VAL,
+            help="Size of the offspring pool (" u"\u03BB" "). "
+                "Required in varOr type runs.")
         group.add_argument("--mutate-type", type=int, nargs="?",
             default=1,
             help="Mutation type.",
@@ -79,7 +89,8 @@ class utils:
             default=WEIGHT_MAX_DEF,
             help="Maximum weight")
 
-        group = parser.add_argument_group('Genetic Algorithm Selection Configuration')
+        group = parser.add_argument_group('Genetic Algorithm '
+            'Selection Configuration')
         group.add_argument("-s", "--selection", type=int,
             default=1,
             help="Selection type to use.",
@@ -87,10 +98,6 @@ class utils:
         group.add_argument("--tournament-size", type=int,
             default=DEF_ERROR_VAL,
             help="If using tournament selection, the size of the tournament.")
-        group.add_argument("--elite-count", type=int,
-            default=DEF_ERROR_VAL,
-            help="If using NSGA2 or SPEA2 selection, the size elite passed "
-                "to next generation.")
 
         args = parser.parse_args()
 
@@ -104,18 +111,25 @@ class utils:
             logging.critical("Minimum weight must be greater than max weight.")
             sys.exit(1)
 
-        if args.selection == 1 and args.tournament_size == -255:
+        if args.selection == 1 and args.tournament_size == DEF_ERROR_VAL:
+            # Tournament selected checking.
             logging.critical("Tournament size (--tournament-size) "
                 "must be specified when using tournament selection type!");
             sys.exit(1)
-        elif ((args.selection == 3 or args.selection == 4) and
-            args.elite_count == -255 or args.elite_count > args.population):
-            logging.critical("Elite count (--elite-count) "
-                "must be specified when using NSGA2 or SPEA2 selection type "
-                "and must be less than the population size!");
+        elif (args.selection == 3 or args.selection == 4):
+            # NSGA2 or SPEA2 selected checking.
+            if args.variation != 2:
+                logging.critical("Variation must be set to varOr (2) for "
+                "NSGA2 or SPEA2 selection type!")
+                sys.exit(1)
+
+        if args.variation == 2 and args.lambda_ == DEF_ERROR_VAL:
+            logging.critical(u"\u03BB" " must be specified for variation "
+            "varOr.")
             sys.exit(1)
 
-        if (args.selection == 3 or args.selection == 4):
-            # These two are presently broken.
-            logging.critical("These two are broken for now! Sorry!");
+        if (args.lambda_ is not DEF_ERROR_VAL
+            and args.lambda_ <= args.population):
+            logging.critical(u"\u03BB" " must be greater than population ("
+            u"\u03BC" ")!")
             sys.exit(1)
