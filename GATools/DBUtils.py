@@ -93,12 +93,14 @@ class DBUtils:
             generations                    = %s AND
             population                     = %s AND
             moves_limit                    = %s AND
-            sel_tourn_size                 = %s AND
+            (sel_tourn_size                 = %s OR
+             sel_tourn_size                 IS NULL) AND
             round(p_mutate::numeric, 4)    = %s AND
             round(p_crossover::numeric, 4) = %s AND
             weight_min                     = %s AND
             weight_max                     = %s AND
-            lambda                         = %s AND
+            (lambda                        = %s OR
+             lambda                        IS NULL) AND
             algorithm_ver                  = %s
             """, (
                 run_info["networks_id"],
