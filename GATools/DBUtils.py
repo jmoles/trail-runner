@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+import json
 import numpy as np
 import os
 import psycopg2
@@ -31,11 +32,23 @@ class DBUtils:
         user=os.environ.get("PGUSER", "jmoles"),
         password=os.environ.get("PGPASSWORD", "password"),
         port=os.environ.get("PGPORT", 5432),
+        config_file=None,
         debug=False):
 
-        self.__dsn = (
-            "host={0} dbname={1} user={2} password={3} port={4}".format(
-                host, db, user, password, port))
+        if config_file is not None:
+            with open(config_file) as fh:
+                config = json.load(fh)
+            self.__dsn = (
+                "host={0} dbname={1} user={2} password={3} port={4}".format(
+                    config["database"]["host"],
+                    config["database"]["db"],
+                    config["database"]["user"],
+                    config["database"]["password"],
+                    config["database"]["port"]))
+        else:
+            self.__dsn = (
+                "host={0} dbname={1} user={2} password={3} port={4}".format(
+                    host, db, user, password, port))
 
         self.__debug = debug
 

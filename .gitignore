@@ -56,3 +56,4 @@ target/
 # Other files
 sftp-config.json
 networks.sql
+config.json
