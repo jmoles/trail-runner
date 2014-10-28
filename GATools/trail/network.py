@@ -227,7 +227,8 @@ class network:
         hidden_count=5,
         output_count=3,
         in_to_out_connect=True,
-        name=None):
+        name=None,
+        recurrent=True):
 
         if not name:
             name = "JL NN Chemical DL{0} ({1},{2},{3}) v1".format(
@@ -241,7 +242,7 @@ class network:
             in_count=mdl_length * 2,
             hidden_count=hidden_count,
             output_count=output_count,
-            recurrent=True,
+            recurrent=recurrent,
             in_to_out_connect=in_to_out_connect,
             name=name)
 

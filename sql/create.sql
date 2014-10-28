@@ -50,6 +50,9 @@ CREATE TABLE networks (
     name text  NOT NULL,
     net bytea  NOT NULL,
     dl_length int NOT NULL,
+    input_count int NOT NULL,
+    hidden_count int NOT NULL,
+    output_count int NOT NULL,
     CONSTRAINT networks_pk PRIMARY KEY (id)
 );
 
@@ -263,7 +266,6 @@ CREATE INDEX idx_weight_max_rc ON run_config USING btree (weight_max);
 CREATE INDEX idx_weight_min_rc ON run_config USING btree (weight_min);
 CREATE INDEX idx_selection_id_rc ON run_config USING btree (selection_id);
 CREATE INDEX idx_variations_id_rc ON run_config USING btree (variations_id);
-CREATE INDEX idx_lambda_rc ON run_config USING btree (lambda);
 CREATE INDEX idx_algorithm_ver_rc ON run_config USING btree (algorithm_ver);
 
 -- Table run index
