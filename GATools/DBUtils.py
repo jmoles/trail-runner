@@ -26,11 +26,11 @@ class NetworkNotFound(Exception):
 class DBUtils:
     def __init__(
         self,
-        host=os.environ.get("PSYCOPG2_DB_HOST", "localhost"),
-        db=os.environ.get("PSYCOPG2_DB_DB", "jmoles"),
-        user=os.environ.get("PSYCOPG2_DB_USER", "jmoles"),
-        password=os.environ.get("PSYCOPG2_DB_PASS", "password"),
-        port=os.environ.get("PSYCOPG2_DB_PORT", 5432),
+        host=os.environ.get("PGHOST", "localhost"),
+        db=os.environ.get("PGDATABASE", "jmoles"),
+        user=os.environ.get("PGUSER", "jmoles"),
+        password=os.environ.get("PGPASSWORD", "password"),
+        port=os.environ.get("PGPORT", 5432),
         debug=False):
 
         self.__dsn = (
