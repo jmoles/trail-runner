@@ -36,13 +36,13 @@ class utils:
             help="Trail to use.",
             choices=valid_db_opts["trail"])
         parser.add_argument("population", type=int,
-            metavar=u"\u03BC",
-            help="Size of the population. Serves as "
-                u"\u03BC" " in varOr type runs.")
+            metavar="mu",
+            help="Size of the population. Serves as mu "
+                " in varOr type runs.")
         parser.add_argument("lambda_",
-            metavar=u"\u03BB",
+            metavar="lambda",
             type=int,
-            help="Size of the offspring pool (" u"\u03BB" "). "
+            help="Size of the offspring pool (lambda). "
                 "Required in varOr type runs.")
         parser.add_argument("moves",
             type=int,
@@ -64,6 +64,9 @@ class utils:
         group.add_argument("-q", "--quiet",
             action='store_true',
             help="Disables all output from application.")
+        group.add_argument("--script-mode",
+            action='store_true',
+            help="Disables progress bar and prints information to stdout.")
         group.add_argument("-r", "--repeat", type=int, nargs="?",
             default=1, help="Number of times to repeat simulations.")
 
@@ -127,12 +130,11 @@ class utils:
                 sys.exit(1)
 
         if args.variation == 2 and args.lambda_ == DEF_ERROR_VAL:
-            logging.critical(u"\u03BB" " must be specified for variation "
+            logging.critical("lambda must be specified for variation "
             "varOr.")
             sys.exit(1)
 
         if (args.lambda_ is not DEF_ERROR_VAL
             and args.lambda_ <= args.population):
-            logging.critical(u"\u03BB" " must be greater than population ("
-            u"\u03BC" ")!")
+            logging.critical("lambda must be greater than population (mu)!")
             sys.exit(1)

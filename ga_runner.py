@@ -122,7 +122,7 @@ def main(args):
     at.readTrail(args.trail)
     trail_name = at.getName()
 
-    if not args.quiet and not args.debug:
+    if not args.quiet and not args.debug and not args.script_mode:
         try:
             TOTAL_GENERATIONS = (len(args.network) *
                 args.generations * args.repeat)
@@ -338,6 +338,19 @@ def main(args):
             else:
                 run_id = -1
 
+            if args.script_mode:
+                if run_id > 0:
+                    logging.info(
+                        "Completed repeat {0} with run ID {1}.".format(
+                            curr_repeat,
+                            run_id
+                        ))
+                else:
+                    logging.info(
+                        "Completed repeat {0} without logging to DB.".format(
+                            curr_repeat
+                        ))
+
         # Delete the temporary file
         os.remove(temp_f_network)
 
@@ -348,11 +361,11 @@ def main(args):
     total_time_s = time.time() - run_date
 
     if run_id > 0:
-        logging.info("Final Run ID {0} completed in {1}".format(
+        logging.info("Final Run ID {0} completed all runs in {1}.".format(
                 run_id,
                 time.strftime('%H:%M:%S', time.gmtime(total_time_s))))
     else:
-        logging.info("UNLOGGED Run completed in {0}".format(
+        logging.info("UNLOGGED Run completed in {0}.".format(
                 time.strftime('%H:%M:%S', time.gmtime(total_time_s))))
 
 
