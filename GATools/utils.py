@@ -7,12 +7,13 @@ import sys
 from DBUtils import DBUtils
 
 GENS_DEF        = 200
-POP_DEF         = 300
-MOVES_DEF       = 200
-P_MUTATE_DEF    = 0.2
+P_MUTATE_DEF    = 0.1
 P_CROSSOVER_DEF = 0.5
 WEIGHT_MIN_DEF  = -5.0
 WEIGHT_MAX_DEF  = 5.0
+SELECTION_DEF   = 3
+MUTATE_DEF      = 1
+VARIATION_DEF   = 2
 
 DEF_ERROR_VAL = None
 
@@ -30,10 +31,6 @@ class utils:
             "of genetic algorithm evaluation.",
             formatter_class=argparse.RawTextHelpFormatter)
 
-        parser.add_argument("network", type=int,
-            metavar='network',
-            help=textwrap.dedent("Network type to use."),
-            choices=valid_db_opts["network"])
         parser.add_argument("trail", type=int,
             metavar='trail',
             help="Trail to use.",
@@ -42,10 +39,20 @@ class utils:
             metavar=u"\u03BC",
             help="Size of the population. Serves as "
                 u"\u03BC" " in varOr type runs.")
+        parser.add_argument("lambda_",
+            metavar=u"\u03BB",
+            type=int,
+            help="Size of the offspring pool (" u"\u03BB" "). "
+                "Required in varOr type runs.")
         parser.add_argument("moves",
             type=int,
             metavar="moves",
             help="Maximum moves for agent.")
+        parser.add_argument("network", type=int,
+            metavar='network',
+            nargs='*',
+            help=textwrap.dedent("Network type to use."),
+            choices=valid_db_opts["network"])
 
         group = parser.add_argument_group('Application Options')
         group.add_argument("--disable-db",
@@ -65,15 +72,11 @@ class utils:
             default=GENS_DEF,
             help="Number of generations to run for.")
         group.add_argument("--variation", type=int,
-            default=1,
+            default=VARIATION_DEF,
             help="Variation type to use in DEAP.",
             choices=valid_db_opts["variations"])
-        group.add_argument("--lambda_", type=int,
-            default=DEF_ERROR_VAL,
-            help="Size of the offspring pool (" u"\u03BB" "). "
-                "Required in varOr type runs.")
         group.add_argument("--mutate-type", type=int, nargs="?",
-            default=1,
+            default=MUTATE_DEF,
             help="Mutation type.",
             choices=valid_db_opts["mutate"])
         group.add_argument("--prob-mutate", type=float, nargs="?",
@@ -92,7 +95,7 @@ class utils:
         group = parser.add_argument_group('Genetic Algorithm '
             'Selection Configuration')
         group.add_argument("-s", "--selection", type=int,
-            default=1,
+            default=SELECTION_DEF,
             help="Selection type to use.",
             choices=valid_db_opts["selection"])
         group.add_argument("--tournament-size", type=int,

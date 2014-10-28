@@ -124,161 +124,115 @@ def main(args):
 
     if not args.quiet and not args.debug:
         try:
+            TOTAL_GENERATIONS = (len(args.network) *
+                args.generations * args.repeat)
             widgets = ['Processed: ', progressbar.Percentage(), ' ',
                 progressbar.Bar(marker=progressbar.RotatingMarker()),
                 ' ', progressbar.ETA()]
-            pbar = progressbar.ProgressBar(widgets=widgets, maxval=100).start()
+            pbar = progressbar.ProgressBar(
+                widgets=widgets,
+                maxval=TOTAL_GENERATIONS).start()
         except:
             pbar = None
     else:
         pbar = None
 
-    # Query the database to get the network information.
-    pybrain_network = pgdb.getNetworkByID(args.network)
+    current_overall_gen = 0
 
-    temp_f_h, temp_f_network = tempfile.mkstemp()
-    os.close(temp_f_h)
+    for curr_network in args.network:
 
-    with open(temp_f_network, "w") as f:
-        pickle.dump(pybrain_network, f)
+        # Query the database to get the network information.
+        pybrain_network = pgdb.getNetworkByID(curr_network)
 
-    # TODO: Need to fix this for chemistry support here.
-    if "Chemical" in pybrain_network.name:
-        chem_re = re.compile(
-                "JL NN Chemical DL([0-9]+) \([0-9]+,[0-9]+,[0-9]+\) v[0-9]+")
-        chem_dl_length = int(chem_re.findall(pybrain_network.name)[0])
+        temp_f_h, temp_f_network = tempfile.mkstemp()
+        os.close(temp_f_h)
 
-        network_params_len = len(pybrain_network.params) + chem_dl_length * 3
+        with open(temp_f_network, "w") as f:
+            pickle.dump(pybrain_network, f)
 
-    else:
-        network_params_len = len(pybrain_network.params)
+        # TODO: Need to fix this for chemistry support here.
+        if "Chemical" in pybrain_network.name:
+            chem_re = re.compile(
+                    "JL NN Chemical DL([0-9]+) \([0-9]+,[0-9]+,[0-9]+\) v[0-9]+")
+            chem_dl_length = int(chem_re.findall(pybrain_network.name)[0])
 
-    for curr_repeat in range(0, args.repeat):
-        repeat_start_time = datetime.datetime.now()
+            network_params_len = len(pybrain_network.params) + chem_dl_length * 3
 
-        gens_stat_list = [0] * args.generations
-        # Create an empty array to store the launches for SCOOP.
-        launches = []
-
-        # Prepare the array for storing hall of fame.
-        hof_array = np.zeros((args.generations,
-            network_params_len))
-
-        toolbox = base.Toolbox()
-        toolbox.register("map", scoop.futures.map)
-        toolbox.register("attr_float", random.uniform,
-            a=args.weight_min, b=args.weight_max)
-        toolbox.register("individual", tools.initRepeat, creator.Individual,
-            toolbox.attr_float, n=network_params_len)
-        toolbox.register("population", tools.initRepeat, list,
-            toolbox.individual)
+        else:
+            network_params_len = len(pybrain_network.params)
 
         # Query the database to get the trail information.
         (data_matrix,
         db_trail_name,
         init_rot) = pgdb.getTrailData(args.trail)
 
-        an_temp = AgentNetwork()
-        an_temp.readNetworkFromFile(temp_f_network)
-        at_temp = AgentTrail()
-        at_temp.readTrailInstant(data_matrix, db_trail_name, init_rot)
+        for curr_repeat in range(0, args.repeat):
+            repeat_start_time = datetime.datetime.now()
 
-        toolbox.register("evaluate", __singleMazeTask, moves=args.moves,
-            network=pickle.dumps(an_temp), trail=pickle.dumps(at_temp))
-        toolbox.register("mate", tools.cxTwoPoint)
-        toolbox.register("mutate", tools.mutFlipBit, indpb=P_BIT_MUTATE)
-        if args.selection == 1:
-            # Selection is tournment. Must use argument from user.
-            toolbox.register("select", tools.selTournament,
-                tournsize=args.tournament_size)
-        else:
-            # Selection is something else.
-            # Indexes start with 1 in Postgres so need to offset by 1 here.
-            toolbox.register("select", SELECTION_MODES[args.selection])
+            gens_stat_list = [0] * args.generations
+            # Create an empty array to store the launches for SCOOP.
+            launches = []
 
-        # Start a new evolution
-        population = toolbox.population(n=args.population)
-        halloffame = tools.HallOfFame(maxsize=1)
-        food_stats = tools.Statistics(key=lambda ind: ind.fitness.values[0])
-        move_stats = tools.Statistics(key=lambda ind: ind.fitness.values[1])
-        mstats     = tools.MultiStatistics(food=food_stats, moves=move_stats)
+            # Prepare the array for storing hall of fame.
+            hof_array = np.zeros((args.generations,
+                network_params_len))
 
-        mstats.register("min", np.min)
-        mstats.register("avg", np.mean)
-        mstats.register("max", np.max)
-        mstats.register("std", np.std)
-        mstats.register("mode", mode)
+            toolbox = base.Toolbox()
+            toolbox.register("map", scoop.futures.map)
+            toolbox.register("attr_float", random.uniform,
+                a=args.weight_min, b=args.weight_max)
+            toolbox.register("individual", tools.initRepeat, creator.Individual,
+                toolbox.attr_float, n=network_params_len)
+            toolbox.register("population", tools.initRepeat, list,
+                toolbox.individual)
 
-        # Record the start of this run.
-        log_time = datetime.datetime.now()
+            an_temp = AgentNetwork()
+            an_temp.readNetworkFromFile(temp_f_network)
+            at_temp = AgentTrail()
+            at_temp.readTrailInstant(data_matrix, db_trail_name, init_rot)
 
-        # Evaluate and record the first generation here.
-        invalid_ind = [ind for ind in population if not ind.fitness.valid]
-        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
-        for ind, fit in zip(invalid_ind, fitnesses):
-            ind.fitness.values = fit
-
-        # Determine the current generations statistics.
-        record = mstats.compile(population)
-
-        logging.debug("Completed generation 1")
-
-        hof_indiv = np.array(tools.selBest(population, k=1)[0])
-        hof_array[0] = hof_indiv
-
-        # Add the hall of fame to launches.
-        launches.append(
-            scoop.futures.submit(__singleMazeTask,
-            hof_indiv,
-            args.moves,
-            pickle.dumps(an_temp),
-            pickle.dumps(at_temp),
-            1,
-            record)
-        )
-
-        # Begin the generational process
-        for gen in range(2, args.generations + 1):
-            # Vary the pool of individuals
-            if args.variation == 1:
-                offspring = algorithms.varAnd(population, toolbox,
-                    cxpb=args.prob_crossover, mutpb=args.prob_mutate)
-            elif args.variation == 2:
-                offspring = algorithms.varOr(population, toolbox,
-                    lambda_=args.lambda_,
-                    cxpb=args.prob_crossover, mutpb=args.prob_mutate)
+            toolbox.register("evaluate", __singleMazeTask, moves=args.moves,
+                network=pickle.dumps(an_temp), trail=pickle.dumps(at_temp))
+            toolbox.register("mate", tools.cxTwoPoint)
+            toolbox.register("mutate", tools.mutFlipBit, indpb=P_BIT_MUTATE)
+            if args.selection == 1:
+                # Selection is tournment. Must use argument from user.
+                toolbox.register("select", tools.selTournament,
+                    tournsize=args.tournament_size)
             else:
-                logging.critical("Something is really wrong! "
-                    "Reached an invalid variation type!")
-                sys.exit(5)
+                # Selection is something else.
+                # Indexes start with 1 in Postgres so need to offset by 1 here.
+                toolbox.register("select", SELECTION_MODES[args.selection])
 
-            # Evaluate the individuals with an invalid fitness
-            invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+            # Start a new evolution
+            population = toolbox.population(n=args.population)
+            halloffame = tools.HallOfFame(maxsize=1)
+            food_stats = tools.Statistics(key=lambda ind: ind.fitness.values[0])
+            move_stats = tools.Statistics(key=lambda ind: ind.fitness.values[1])
+            mstats     = tools.MultiStatistics(food=food_stats, moves=move_stats)
+
+            mstats.register("min", np.min)
+            mstats.register("avg", np.mean)
+            mstats.register("max", np.max)
+            mstats.register("std", np.std)
+            mstats.register("mode", mode)
+
+            # Record the start of this run.
+            log_time = datetime.datetime.now()
+
+            # Evaluate and record the first generation here.
+            invalid_ind = [ind for ind in population if not ind.fitness.valid]
             fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
             for ind, fit in zip(invalid_ind, fitnesses):
                 ind.fitness.values = fit
 
-            # Update the hall of fame with the generated individuals
-            if halloffame is not None:
-                halloffame.update(offspring)
-
-            # Replace the current population by the offspring
-            if args.variation == 2:
-                population[:] = toolbox.select(offspring, args.population)
-            else:
-                population[:] = offspring
-
             # Determine the current generations statistics.
             record = mstats.compile(population)
 
-            # Calculate the percent done for the progress bar.
-            percent_done = int((float(gen) / float(args.generations)) * 100)
-
-            logging.debug("Completed generation {0}".format(gen))
+            logging.debug("Completed generation 1")
 
             hof_indiv = np.array(tools.selBest(population, k=1)[0])
-
-            hof_array[gen - 1] = hof_indiv
+            hof_array[0] = hof_indiv
 
             # Add the hall of fame to launches.
             launches.append(
@@ -287,80 +241,120 @@ def main(args):
                 args.moves,
                 pickle.dumps(an_temp),
                 pickle.dumps(at_temp),
-                gen,
+                1,
                 record)
             )
 
-            # Update the progress bar
-            if pbar:
-                bar_done_val = ((float(percent_done) / (100.0 * args.repeat)) +
-                    (float(curr_repeat)) / (float(args.repeat)))
-                pbar.update(bar_done_val * 100)
+            # Begin the generational process
+            for gen in range(2, args.generations + 1):
+                # Vary the pool of individuals
+                if args.variation == 1:
+                    offspring = algorithms.varAnd(population, toolbox,
+                        cxpb=args.prob_crossover, mutpb=args.prob_mutate)
+                elif args.variation == 2:
+                    offspring = algorithms.varOr(population, toolbox,
+                        lambda_=args.lambda_,
+                        cxpb=args.prob_crossover, mutpb=args.prob_mutate)
+                else:
+                    logging.critical("Something is really wrong! "
+                        "Reached an invalid variation type!")
+                    sys.exit(5)
 
-        # Evaluate the Hall of Fame individual for each generation here
-        # in a multithreaded fashion to speed things up.
-        for this_future in scoop.futures.as_completed(launches):
-            result = this_future.result()
-            gens_stat_list[result[0] - 1] = result[1]
+                # Evaluate the individuals with an invalid fitness
+                invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+                fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+                for ind, fit in zip(invalid_ind, fitnesses):
+                    ind.fitness.values = fit
 
-        # Record the statistics on this run.
-        run_info = {}
+                # Update the hall of fame with the generated individuals
+                if halloffame is not None:
+                    halloffame.update(offspring)
 
-        run_info["trails_id"]    = args.trail
-        run_info["networks_id"]  = args.network
-        run_info["selection_id"] = args.selection
-        run_info["mutate_id"]    = args.mutate_type
-        run_info["host_type_id"] = 1 # Only one host type for now.
-        run_info["variations_id"] = args.variation
-        run_info["run_date"]     = log_time
-        run_info["hostname"]     = socket.getfqdn()
-        run_info["generations"]  = args.generations
-        run_info["population"]   = args.population
-        run_info["moves_limit"]  = args.moves
-        run_info["sel_tourn_size"]  = args.tournament_size
-        run_info["lambda"] = args.lambda_
-        run_info["p_mutate"]     = args.prob_mutate
-        run_info["p_crossover"]  = args.prob_crossover
-        run_info["weight_min"]   = args.weight_min
-        run_info["weight_max"]   = args.weight_max
-        run_info["debug"]        = args.debug
-        # Version for if anything changes in python GA Algorithm
-        run_info["algorithm_ver"] = 2
-        run_info["runtime"]      = (datetime.datetime.now() -
-            repeat_start_time)
+                # Replace the current population by the offspring
+                if args.variation == 2:
+                    population[:] = toolbox.select(offspring, args.population)
+                else:
+                    population[:] = offspring
 
-        if not args.disable_db:
-            run_id = pgdb.recordRun(run_info, gens_stat_list)
-        else:
-            run_id = -1
+                # Determine the current generations statistics.
+                record = mstats.compile(population)
+
+                logging.debug("Completed generation {0}".format(gen))
+
+                hof_indiv = np.array(tools.selBest(population, k=1)[0])
+
+                hof_array[gen - 1] = hof_indiv
+
+                # Add the hall of fame to launches.
+                launches.append(
+                    scoop.futures.submit(__singleMazeTask,
+                    hof_indiv,
+                    args.moves,
+                    pickle.dumps(an_temp),
+                    pickle.dumps(at_temp),
+                    gen,
+                    record)
+                )
+
+                # Update the progress bar
+                if pbar:
+                    current_overall_gen += 1
+                    pbar.update(current_overall_gen)
+
+            # Evaluate the Hall of Fame individual for each generation here
+            # in a multithreaded fashion to speed things up.
+            for this_future in scoop.futures.as_completed(launches):
+                result = this_future.result()
+                gens_stat_list[result[0] - 1] = result[1]
+
+            # Record the statistics on this run.
+            run_info = {}
+
+            run_info["trails_id"]    = args.trail
+            run_info["networks_id"]  = curr_network
+            run_info["selection_id"] = args.selection
+            run_info["mutate_id"]    = args.mutate_type
+            run_info["host_type_id"] = 1 # Only one host type for now.
+            run_info["variations_id"] = args.variation
+            run_info["run_date"]     = log_time
+            run_info["hostname"]     = socket.getfqdn()
+            run_info["generations"]  = args.generations
+            run_info["population"]   = args.population
+            run_info["moves_limit"]  = args.moves
+            run_info["sel_tourn_size"]  = args.tournament_size
+            run_info["lambda"] = args.lambda_
+            run_info["p_mutate"]     = args.prob_mutate
+            run_info["p_crossover"]  = args.prob_crossover
+            run_info["weight_min"]   = args.weight_min
+            run_info["weight_max"]   = args.weight_max
+            run_info["debug"]        = args.debug
+            # Version for if anything changes in python GA Algorithm
+            run_info["algorithm_ver"] = 2
+            run_info["runtime"]      = (datetime.datetime.now() -
+                repeat_start_time)
+
+            if not args.disable_db:
+                run_id = pgdb.recordRun(run_info, gens_stat_list)
+            else:
+                run_id = -1
+
+        # Delete the temporary file
+        os.remove(temp_f_network)
 
     # Calculate and display the total runtime
     if pbar:
         pbar.finish()
+
     total_time_s = time.time() - run_date
 
-    # Delete the temporary file
-    os.remove(temp_f_network)
-
     if run_id > 0:
-        logging.info("Run ID {0} T{1} G{2} P{3}"
-            " N{4} M{5} completed in {6}".format(
+        logging.info("Final Run ID {0} completed in {1}".format(
                 run_id,
-                args.trail,
-                args.generations,
-                args.population,
-                args.network,
-                args.moves,
                 time.strftime('%H:%M:%S', time.gmtime(total_time_s))))
     else:
-        logging.info("UNLOGGED Run T{0} G{1} P{2}"
-            " N{3} M{4} completed in {5}".format(
-                args.trail,
-                args.generations,
-                args.population,
-                args.network,
-                args.moves,
+        logging.info("UNLOGGED Run completed in {0}".format(
                 time.strftime('%H:%M:%S', time.gmtime(total_time_s))))
+
 
 if __name__ == "__main__":
     args = utils.parse_args()
