@@ -80,9 +80,9 @@ class create:
                 ret_d.append(net_d)
 
         # Build the variations of NN/MDL like networks.
-        for out_neuron in range(3, 5):
+        for out_neuron in [3, 4]:
             for hidden_neuron in range(2, 11):
-                for dl_length in range(2, 11):
+                for dl_length in range(2, 16):
                     net_d = {}
                     net_d["name"] = "Jeff-like NN MDL{0} ({1}, {2}, {3})".format(
                         dl_length, dl_length * 2, hidden_neuron, out_neuron)
