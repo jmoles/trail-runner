@@ -115,7 +115,7 @@ def main(args):
         root.propogate = False
 
     # Set up the database.
-    pgdb = DBUtils(config_file="config.json")
+    pgdb = DBUtils(config_file="config/config.json")
 
     # Get the name of this agent trail for later use
     at = AgentTrail()

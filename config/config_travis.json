@@ -1,7 +1,7 @@
 {
     "database" : {
         "host" : "localhost",
-        "user" : "user",
+        "user" : "postgres",
         "db" : "ga_runner_testing",
         "password" : "",
         "port" : 5432
