@@ -1,19 +1,15 @@
 language: python
 python:
-  - "2.7"
-  - "3.4"
+  - "2.7_with_system_site_packages"
 # Addons for travis
 addons:
     postgresql: "9.3"
 
 before_install:
-    - sudo apt-get install -qq build-essential net-tools python python-dev libpq-dev libblas-dev liblapack-dev libatlas-dev libatlas-base-dev liblapack-dev gfortran libgmp-dev libmpfr-dev python-numpy python-scipy python-psycopg2
+    - sudo apt-get install -qq build-essential net-tools python python-dev python-numpy python-scipy python-psycopg2
 
 # command to install dependencies
-install: "pip --quiet install --requirement requirements.txt"
-# Tell travis to use system site packages.
-virtualenv:
-  system_site_packages: true
+install: "pip install --requirement requirements.txt"
 
 # environment variables
 env: PGHOST=localhost PGDATABASE=ga_runner_testing PGUSER=postgres PGPASSWORD=
