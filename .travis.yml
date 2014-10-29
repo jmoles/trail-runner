@@ -7,7 +7,7 @@ addons:
     postgresql: "9.3"
 
 before_install:
-    - sudo apt-get install build-essential net-tools python python-dev libblas-dev python-pip libpq-dev python-psycopg2 python-scipy python-numpy
+    - sudo apt-get install build-essential net-tools python python-dev python-pip python-psycopg2 python-scipy python-numpy python3-psycopg2 python3-scipy python3-numpy python3-pip python3-dev
 
 # command to install dependencies
 install: "pip install -r requirements.txt"

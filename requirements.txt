@@ -5,4 +5,4 @@ psycopg2>=2.4.2
 scipy>=0.10.0
 numpy>=1.8.1
 scoop>=0.7.1.release
-PyBrain==0.3
+PyBrain>=0.3
