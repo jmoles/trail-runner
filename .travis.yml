@@ -1,16 +1,13 @@
 language: python
 python:
-  - "2.6"
   - "2.7"
-  - "3.2"
-  - "3.3"
   - "3.4"
 # Addons for travis
 addons:
     postgresql: "9.3"
 
 before_install:
-    - sudo apt-get install python-numpy python-scipy python-psycopg2
+    - sudo apt-get install build-essential net-tools python python-dev libblas-dev python-pip
 
 # command to install dependencies
 install: "pip install -r requirements.txt"
