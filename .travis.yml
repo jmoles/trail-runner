@@ -7,7 +7,7 @@ addons:
     postgresql: "9.3"
 
 before_install:
-    - sudo apt-get install -qq build-essential net-tools python python-dev python-numpy python-scipy python-psycopg2
+    - sudo apt-get install -qq build-essential net-tools python python-dev python-numpy python-scipy python-psycopg2 python-zmq
 
 # command to install dependencies
 install: "pip install --requirement requirements.txt"
@@ -16,7 +16,7 @@ install: "pip install --requirement requirements.txt"
 env: PGHOST=localhost PGDATABASE=ga_runner_testing PGUSER=postgres PGPASSWORD=
 # commands to run before the tests
 before_script:
-    - psql -c 'create database ga_runner_testing;' -U postgres
+    - psql -c 'CREATE DATABASE ga_runner_testing;' -U postgres
     - psql -f sql/create.sql
     - python -c "from GATools.db.create import create; myc=create(); myc.insert_networks()"
 # command to run tests
