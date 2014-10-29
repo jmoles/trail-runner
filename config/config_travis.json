@@ -1,0 +1,9 @@
+{
+    "database" : {
+        "host" : "localhost",
+        "user" : "user",
+        "db" : "ga_runner_testing",
+        "password" : "",
+        "port" : 5432
+    }
+}

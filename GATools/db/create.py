@@ -15,10 +15,23 @@ class create:
     db=os.environ.get("PGDATABASE", "josh"),
     user=os.environ.get("PGUSER", "josh"),
     password=os.environ.get("PGPASSWORD", "password"),
-    port=os.environ.get("PGPORT", 5432)):
+    port=os.environ.get("PGPORT", 5432),
+    config_file=None):
 
-        self.__dsn = "host={0} dbname={1} user={2} port={3} password={4}".format(
-            host, db, user, port, password)
+        if config_file is not None:
+            with open(config_file) as fh:
+                config = json.load(fh)
+            self.__dsn = (
+                "host={0} dbname={1} user={2} port={3} password={4}".format(
+                    config["database"]["host"],
+                    config["database"]["db"],
+                    config["database"]["user"],
+                    config["database"]["port"],
+                    config["database"]["password"]))
+        else:
+            self.__dsn = (
+                "host={0} dbname={1} user={2} port={3} password={4}".format(
+                    host, db, user, port, password))
 
     def insert_networks(self):
         """ Inserts the networks into the SQL database. """
