@@ -7,10 +7,14 @@ addons:
     postgresql: "9.3"
 
 before_install:
-    - sudo apt-get install -qq build-essential net-tools python python-dev libpq-dev libblas-dev liblapack-dev libatlas-dev libatlas-base-dev liblapack-dev gfortran libgmp-dev libmpfr-dev
+    - sudo apt-get install -qq build-essential net-tools python python-dev libpq-dev libblas-dev liblapack-dev libatlas-dev libatlas-base-dev liblapack-dev gfortran libgmp-dev libmpfr-dev python-numpy python-scipy python-psycopg2
 
 # command to install dependencies
-install: "pip install -r requirements.txt"
+install: "pip --quiet install --requirement requirements.txt"
+# Tell travis to use system site packages.
+virtualenv:
+  system_site_packages: true
+
 # environment variables
 env: PGHOST=localhost PGDATABASE=ga_runner_testing PGUSER=postgres PGPASSWORD=
 # commands to run before the tests
