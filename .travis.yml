@@ -27,3 +27,4 @@ script:
     - python -m scoop ga_runner.py -r 5 -g 10 --variation 2 -s 1 --tournament-size 10 1 20 40 10 1
     - python -m scoop ga_runner.py -r 5 -g 10 --variation 2 -s 3 1 20 40 10 1
     - python -m scoop ga_runner.py -r 5 -g 10 -s 2 1 20 40 10 1
+    - python -m scoop ga_runner.py -r 5 -g 10 -s 2 2 20 40 10 1
