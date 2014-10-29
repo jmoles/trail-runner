@@ -1,6 +1,7 @@
 language: python
 python:
   - "2.7_with_system_site_packages"
+
 # Addons for travis
 addons:
     postgresql: "9.3"
@@ -21,7 +22,7 @@ before_script:
 # command to run tests
 script:
     - nosetests
-    - python -m scoop ga_runner.py -r 5 -g 10 --variation 2 -s 1 --tournament-size 10 1 20 40 10 1
-    - python -m scoop ga_runner.py -r 5 -g 10 --variation 2 -s 3 1 20 40 10 1
-    - python -m scoop ga_runner.py -r 5 -g 10 -s 2 1 20 40 10 1
-    - python -m scoop ga_runner.py -r 5 -g 10 -s 2 2 20 40 10 1
+    - python -m scoop ga_runner.py --script-mode -r 5 -g 10 --variation 2 -s 1 --tournament-size 10 1 20 40 10 1
+    - python -m scoop ga_runner.py --script-mode -r 5 -g 10 --variation 2 -s 3 1 20 40 10 1
+    - python -m scoop ga_runner.py --script-mode -r 5 -g 10 -s 2 1 20 40 10 1
+    - python -m scoop ga_runner.py --script-mode -r 5 -g 10 -s 2 2 20 40 10 1
