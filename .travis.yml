@@ -19,7 +19,7 @@ before_script:
     - createdb $PGDATABASE
     - cp config/config_travis.json config/config.json
     - psql -f sql/create.sql -d ga_runner_testing
-    - python -c "from GATools.db.create import create; myc=create(config_file='config.json'); myc.insert_networks()"
+    - python -c "from GATools.db.create import create; myc=create(config_file='config/config.json'); myc.insert_networks()"
 # command to run tests
 script:
     - nosetests
