@@ -114,7 +114,9 @@ class DBUtils:
             weight_max                     = %s AND
             (lambda                        = %s OR
              lambda                        IS NULL) AND
-            algorithm_ver                  = %s
+            algorithm_ver                  = %s AND
+            (mean_check_length             = %s OR
+             mean_check_length             IS NULL)
             """, (
                 run_info["networks_id"],
                 run_info["trails_id"],
@@ -130,7 +132,8 @@ class DBUtils:
                 run_info["weight_min"],
                 run_info["weight_max"],
                 run_info["lambda"],
-                run_info["algorithm_ver"]
+                run_info["algorithm_ver"],
+                run_info["mean_check_length"]
         ))
 
         # If no row is found, need to add it and get id.
@@ -153,8 +156,10 @@ class DBUtils:
                     weight_min,
                     weight_max,
                     lambda,
-                    algorithm_ver
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    algorithm_ver,
+                    mean_check_length
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s)
                 RETURNING id;""", (
                     run_info["networks_id"],
                     run_info["trails_id"],
@@ -170,7 +175,8 @@ class DBUtils:
                     run_info["weight_min"],
                     run_info["weight_max"],
                     run_info["lambda"],
-                    run_info["algorithm_ver"]
+                    run_info["algorithm_ver"],
+                    run_info["mean_check_length"]
             ))
         elif self.__debug:
             print "DEBUG: Row was found!"

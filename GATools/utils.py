@@ -14,6 +14,7 @@ WEIGHT_MAX_DEF  = 5.0
 SELECTION_DEF   = 3
 MUTATE_DEF      = 1
 VARIATION_DEF   = 2
+DEF_MEAN_CHANGE = 100
 
 DEF_ERROR_VAL = None
 
@@ -94,6 +95,12 @@ class utils:
         group.add_argument("--weight-max", type=float, nargs="?",
             default=WEIGHT_MAX_DEF,
             help="Maximum weight")
+        group.add_argument("--mean-check-length", type=int,
+            default=DEF_MEAN_CHANGE,
+            help="Only used with variation 3. Specifies the number of "
+            "previous generations\nto see if there is no change in average food "
+            "consumed. Stops algorithm\nif there is no change for this period "
+            "of time. Defaults to {0}.".format(DEF_MEAN_CHANGE))
 
         group = parser.add_argument_group('Genetic Algorithm '
             'Selection Configuration')
@@ -124,15 +131,10 @@ class utils:
             sys.exit(1)
         elif (args.selection == 3 or args.selection == 4):
             # NSGA2 or SPEA2 selected checking.
-            if args.variation != 2:
-                logging.critical("Variation must be set to varOr (2) for "
+            if args.variation not in [2, 3]:
+                logging.critical("Variation must be set to varOr (2/3) for "
                 "NSGA2 or SPEA2 selection type!")
                 sys.exit(1)
-
-        if args.variation == 2 and args.lambda_ == DEF_ERROR_VAL:
-            logging.critical("lambda must be specified for variation "
-            "varOr.")
-            sys.exit(1)
 
         if (args.lambda_ is not DEF_ERROR_VAL
             and args.lambda_ <= args.population):

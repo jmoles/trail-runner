@@ -86,6 +86,7 @@ CREATE TABLE run_config (
     weight_max real  NOT NULL,
     lambda int,
     algorithm_ver int NOT NULL,
+    mean_check_length int,
     CONSTRAINT run_config_pk PRIMARY KEY (id)
 );
 
@@ -247,8 +248,9 @@ INSERT INTO selection (id, name) VALUES
           (8, 'TournamentDCD');
 
 INSERT INTO variations (id, name) VALUES
-    (DEFAULT, 'varAnd'),
-    (DEFAULT, 'varOr');
+    (1, 'varAnd'),
+    (2, 'varOr'),
+    (3, 'varOr with smart terminiation');
 
 -- Create Indexes
 -- Table run_config index

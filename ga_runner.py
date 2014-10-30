@@ -166,10 +166,13 @@ def main(args):
         db_trail_name,
         init_rot) = pgdb.getTrailData(args.trail)
 
+        # Calculate the maximum amount of food for potential later comparison.
+        MAX_FOOD = np.bincount(np.array(data_matrix).flatten())[1]
+
         for curr_repeat in range(0, args.repeat):
             repeat_start_time = datetime.datetime.now()
 
-            gens_stat_list = [0] * args.generations
+            gens_stat_list = [None] * args.generations
             # Create an empty array to store the launches for SCOOP.
             launches = []
 
@@ -245,13 +248,17 @@ def main(args):
                 record)
             )
 
+            # Keep track of the average food history.
+            mean_food_history = []
+            smart_term_msg = ""
+
             # Begin the generational process
             for gen in range(2, args.generations + 1):
                 # Vary the pool of individuals
                 if args.variation == 1:
                     offspring = algorithms.varAnd(population, toolbox,
                         cxpb=args.prob_crossover, mutpb=args.prob_mutate)
-                elif args.variation == 2:
+                elif args.variation in [2, 3]:
                     offspring = algorithms.varOr(population, toolbox,
                         lambda_=args.lambda_,
                         cxpb=args.prob_crossover, mutpb=args.prob_mutate)
@@ -271,7 +278,7 @@ def main(args):
                     halloffame.update(offspring)
 
                 # Replace the current population by the offspring
-                if args.variation == 2:
+                if args.variation in [2, 3]:
                     population[:] = toolbox.select(offspring, args.population)
                 else:
                     population[:] = offspring
@@ -296,16 +303,37 @@ def main(args):
                     record)
                 )
 
+                # Update the mean food history.
+                mean_food_history.append(record["food"]["avg"])
+
                 # Update the progress bar
                 if pbar:
                     current_overall_gen += 1
                     pbar.update(current_overall_gen)
+
+                # Check if it is time to quit if variation is 3. Critera are
+                # any of the following:
+                #  1) All food has been collected.
+                #  2) Mean has not changed for args.mean_check_length
+                #  3) Run out of generations (happens without this if)
+                if args.variation == 3:
+                    if (record["food"]["max"] == MAX_FOOD or
+                        (len(mean_food_history) >= args.mean_check_length and
+                            np.std(mean_food_history[-args.mean_check_length:])
+                                < 0.1)):
+                        smart_term_msg = ("Exited at generation {0} because "
+                            "smart termination criteria were met.").format(gen)
+                        break
+
 
             # Evaluate the Hall of Fame individual for each generation here
             # in a multithreaded fashion to speed things up.
             for this_future in scoop.futures.as_completed(launches):
                 result = this_future.result()
                 gens_stat_list[result[0] - 1] = result[1]
+
+            # Remove all of the None values from the gen_stat_list
+            gens_stat_list = filter(lambda a: a is not None, gens_stat_list)
 
             # Record the statistics on this run.
             run_info = {}
@@ -330,6 +358,7 @@ def main(args):
             run_info["debug"]        = args.debug
             # Version for if anything changes in python GA Algorithm
             run_info["algorithm_ver"] = 2
+            run_info["mean_check_length"] = args.mean_check_length
             run_info["runtime"]      = (datetime.datetime.now() -
                 repeat_start_time)
 
@@ -341,14 +370,16 @@ def main(args):
             if args.script_mode:
                 if run_id > 0:
                     logging.info(
-                        "Completed repeat {0} with run ID {1}.".format(
+                        "Completed repeat {0} with run ID {1}. {2}".format(
                             curr_repeat,
-                            run_id
+                            run_id,
+                            smart_term_msg
                         ))
                 else:
                     logging.info(
-                        "Completed repeat {0} without logging to DB.".format(
-                            curr_repeat
+                        "Completed repeat {0} without logging to DB. {1}".format(
+                            curr_repeat,
+                            smart_term_msg
                         ))
 
         # Delete the temporary file
@@ -361,12 +392,14 @@ def main(args):
     total_time_s = time.time() - run_date
 
     if run_id > 0:
-        logging.info("Final Run ID {0} completed all runs in {1}.".format(
+        logging.info("Final Run ID {0} completed all runs in {1}. {2}".format(
                 run_id,
-                time.strftime('%H:%M:%S', time.gmtime(total_time_s))))
+                time.strftime('%H:%M:%S', time.gmtime(total_time_s)),
+                smart_term_msg))
     else:
-        logging.info("UNLOGGED Run completed in {0}.".format(
-                time.strftime('%H:%M:%S', time.gmtime(total_time_s))))
+        logging.info("UNLOGGED Run completed in {0}. {1}".format(
+                time.strftime('%H:%M:%S', time.gmtime(total_time_s)),
+                smart_term_msg))
 
 
 if __name__ == "__main__":
