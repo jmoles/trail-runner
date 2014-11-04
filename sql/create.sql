@@ -53,6 +53,7 @@ CREATE TABLE networks (
     input_count int NOT NULL,
     hidden_count int NOT NULL,
     output_count int NOT NULL,
+    flavor int NOT NULL,
     CONSTRAINT networks_pk PRIMARY KEY (id)
 );
 

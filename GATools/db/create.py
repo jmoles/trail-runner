@@ -48,7 +48,7 @@ class create:
 
         # Populate the table.
         query_s = """INSERT INTO networks
-            (id, name, net, dl_length, hidden_count, input_count, output_count)
+            (id, name, net, dl_length, hidden_count, input_count, output_count, flavor)
             VALUES (
                 DEFAULT,
                 %(name)s,
@@ -56,7 +56,8 @@ class create:
                 %(dl_length)s,
                 %(hidden_count)s,
                 %(input_count)s,
-                %(output_count)s);"""
+                %(output_count)s,
+                %(flavor)s);"""
 
         curs.executemany(query_s, networks_d)
 
@@ -91,6 +92,7 @@ class create:
                 net_d["hidden_count"] = hidden_neuron
                 net_d["input_count"] = out_neuron
                 net_d["output_count"] = out_neuron
+                net_d["flavor"] = 1
                 ret_d.append(net_d)
 
         # Build the variations of NN/MDL like networks.
@@ -110,6 +112,7 @@ class create:
                     net_d["hidden_count"] = hidden_neuron
                     net_d["input_count"] = dl_length * 2
                     net_d["output_count"] = out_neuron
+                    net_d["flavor"] = 2
                     ret_d.append(net_d)
 
 
