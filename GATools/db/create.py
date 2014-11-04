@@ -70,11 +70,11 @@ class create:
         """ Builds and pickles the tables for DB ready format. """
         ret_d = []
 
-        # Build the neural networks for Jefferson NN basic..
-        for hidden_neuron in [1, 5]:
+        # Build the neural networks for Jefferson NN basic.
+        for hidden_neuron in [1, 10]:
             for out_neuron in [3, 4]:
                 net_d = {}
-                net_d["name"]    = "Jefferson NN ({0},{1},{2})".format(
+                net_d["name"] = "Jefferson NN ({0},{1},{2})".format(
                     2,
                     hidden_neuron,
                     out_neuron
