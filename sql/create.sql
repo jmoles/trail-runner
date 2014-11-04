@@ -260,6 +260,13 @@ INSERT INTO variations (id, name) VALUES
     (3, 'varOr with smart terminiation');
 
 -- Create Indexes
+-- Table networks index
+CREATE INDEX idx_dl_length_networks ON networks USING btree(dl_length);
+CREATE INDEX idx_hidden_count_networks ON networks USING btree(hidden_count);
+CREATE INDEX idx_input_count_networks ON networks USING btree(input_count);
+CREATE INDEX idx_output_count_networks ON networks USING btree(output_count);
+CREATE INDEX idx_flavor_networks ON networks USING btree(flavor);
+
 -- Table run_config index
 CREATE INDEX idx_sel_tourn_size_rc ON run_config USING btree (sel_tourn_size);
 CREATE INDEX idx_lambda_rc ON run_config USING btree (lambda);
