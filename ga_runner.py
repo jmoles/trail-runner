@@ -1,5 +1,7 @@
+from collections import Sequence
 import datetime
 from deap import algorithms, base, creator, tools
+from itertools import repeat
 import logging
 import numpy as np
 import os
@@ -47,6 +49,36 @@ SELECTION_MODES = [
     tools.selWorst,
     tools.selTournamentDCD,
 ]
+
+def mutUniformFloat(individual, low, up, indpb):
+    """Mutate an individual by replacing attributes, with probability *indpb*,
+    by a integer uniformly drawn between *low* and *up* inclusively.
+
+    :param individual: :term:`Sequence <sequence>` individual to be mutated.
+    :param low: The lower bound or a :term:`python:sequence` of
+                of lower bounds of the range from wich to draw the new
+                integer.
+    :param up: The upper bound or a :term:`python:sequence` of
+               of upper bounds of the range from wich to draw the new
+               integer.
+    :param indpb: Independent probability for each attribute to be mutated.
+    :returns: A tuple of one individual.
+    """
+    size = len(individual)
+    if not isinstance(low, Sequence):
+        low = repeat(low, size)
+    elif len(low) < size:
+        raise IndexError("low must be at least the size of individual: %d < %d" % (len(low), size))
+    if not isinstance(up, Sequence):
+        up = repeat(up, size)
+    elif len(up) < size:
+        raise IndexError("up must be at least the size of individual: %d < %d" % (len(up), size))
+
+    for i, xl, xu in zip(xrange(size), low, up):
+        if random.random() < indpb:
+            individual[i] = random.uniform(xl, xu)
+
+    return individual,
 
 def __singleMazeTask(individual, moves, network, trail,
     gen=None, record=None):
@@ -197,7 +229,32 @@ def main(args):
             toolbox.register("evaluate", __singleMazeTask, moves=args.moves,
                 network=pickle.dumps(an_temp), trail=pickle.dumps(at_temp))
             toolbox.register("mate", tools.cxTwoPoint)
-            toolbox.register("mutate", tools.mutFlipBit, indpb=P_BIT_MUTATE)
+            if args.mutate_type == 1:
+                toolbox.register("mutate",
+                    tools.mutFlipBit,
+                    indpb=P_BIT_MUTATE)
+            elif args.mutate_type == 2:
+                toolbox.register("mutate",
+                    mutUniformFloat,
+                    low=args.weight_min,
+                    up=args.weight_max,
+                    indpb=P_BIT_MUTATE)
+            elif args.mutate_type == 3:
+                toolbox.register("mutate",
+                    mutUniformFloat,
+                    low=args.weight_min,
+                    up=args.weight_max,
+                    indpb=0.30)
+            elif args.mutate_type == 4:
+                toolbox.register("mutate",
+                    mutUniformFloat,
+                    low=args.weight_min,
+                    up=args.weight_max,
+                    indpb=0.10)
+            else:
+                logging.critical("Please selct a valid mutate type!")
+                sys.exit(10)
+
             if args.selection == 1:
                 # Selection is tournment. Must use argument from user.
                 toolbox.register("select", tools.selTournament,
