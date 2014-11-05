@@ -239,6 +239,11 @@ def main(args):
                     low=args.weight_min,
                     up=args.weight_max,
                     indpb=0.10)
+            elif args.mutate_type == 5:
+                toolbox.register("mutate",
+                    tools.mutGaussian,
+                    mu=0,
+                    indpb=0.05)
             else:
                 logging.critical("Please selct a valid mutate type!")
                 sys.exit(10)
@@ -313,13 +318,36 @@ def main(args):
             # Begin the generational process
             for gen in range(2, args.generations + 1):
                 # Vary the pool of individuals
-                if args.variation in [1, 5]:
+                if args.variation in [1]:
                     offspring = algorithms.varAnd(population, toolbox,
                         cxpb=args.prob_crossover, mutpb=args.prob_mutate)
                 elif args.variation in [2, 3, 4]:
                     offspring = algorithms.varOr(population, toolbox,
                         lambda_=args.lambda_,
                         cxpb=args.prob_crossover, mutpb=args.prob_mutate)
+                elif args.variation in [5]:
+                    # Take and modify the varAnd from DEAP.
+                    offspring = [toolbox.clone(ind) for ind in population]
+
+                    # Apply crossover and mutation on the offspring
+                    for i in range(1, len(offspring), 2):
+                        if random.random() < args.prob_crossover:
+                            offspring[i-1], offspring[i] = toolbox.mate(
+                                offspring[i-1], offspring[i])
+                            del (offspring[i-1].fitness.values,
+                                offspring[i].fitness.values)
+
+                    for i in range(len(offspring)):
+                        if random.random() < args.prob_mutate:
+                            if args.mutate_type in [5]:
+                                offspring[i], = toolbox.mutate(
+                                    offspring[i],
+                                    sigma=np.std(offspring[i]))
+                            else:
+                                offspring[i], = toolbox.mutate(
+                                    offspring[i], offspring[i])
+                            del offspring[i].fitness.values
+
                 else:
                     logging.critical("Something is really wrong! "
                         "Reached an invalid variation type!")

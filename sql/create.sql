@@ -243,7 +243,8 @@ INSERT INTO mutate (id, name, params) VALUES
 	(1, 'mutFlipBit', '{0.05}'),
     (2, 'mutUniformFloat', '{0.05}'),
     (3, 'mutUniformFloat', '{0.30}'),
-    (4, 'mutUniformFloat', '{0.10}');
+    (4, 'mutUniformFloat', '{0.10}'),
+    (5, 'mutGaussian', '{0.05}');
 
 INSERT INTO host_configs (id, name) VALUES
 	(DEFAULT, 'cpu');
