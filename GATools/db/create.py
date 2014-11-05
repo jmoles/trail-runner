@@ -90,7 +90,7 @@ class create:
                             name=net_d["name"])))
                 net_d["dl_length"] = 0
                 net_d["hidden_count"] = hidden_neuron
-                net_d["input_count"] = out_neuron
+                net_d["input_count"] = 2
                 net_d["output_count"] = out_neuron
                 net_d["flavor"] = 1
                 ret_d.append(net_d)
