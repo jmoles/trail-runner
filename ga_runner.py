@@ -316,7 +316,7 @@ def main(args):
                 if args.variation == 1:
                     offspring = algorithms.varAnd(population, toolbox,
                         cxpb=args.prob_crossover, mutpb=args.prob_mutate)
-                elif args.variation in [2, 3]:
+                elif args.variation in [2, 3, 4]:
                     offspring = algorithms.varOr(population, toolbox,
                         lambda_=args.lambda_,
                         cxpb=args.prob_crossover, mutpb=args.prob_mutate)
@@ -338,13 +338,33 @@ def main(args):
                 # Replace the current population by the offspring
                 if args.variation in [2, 3]:
                     population[:] = toolbox.select(offspring, args.population)
+                elif args.variation in [4]:
+                    population[:] = toolbox.select(offspring + population,
+                        args.population)
                 else:
                     population[:] = offspring
 
                 # Determine the current generations statistics.
                 record = mstats.compile(population)
 
-                logging.debug("Completed generation {0}".format(gen))
+                logging.debug(
+                    "Completed generation {0}.".format(gen))
+                logging.debug(
+                    "Food (Min / Max / Avg / Std / Mode): "
+                          "{0} / {1} / {2} / {3} / {4}".format(
+                            record["food"]["min"],
+                            record["food"]["max"],
+                            record["food"]["avg"],
+                            record["food"]["std"],
+                            record["food"]["mode"]))
+                logging.debug(
+                    "Moves (Min / Max / Avg / Std / Mode): "
+                          "{0} / {1} / {2} / {3} / {4}".format(
+                            record["moves"]["min"],
+                            record["moves"]["max"],
+                            record["moves"]["avg"],
+                            record["moves"]["std"],
+                            record["moves"]["mode"]))
 
                 hof_indiv = np.array(tools.selBest(population, k=1)[0])
 
@@ -374,7 +394,7 @@ def main(args):
                 #  1) All food has been collected.
                 #  2) Mean has not changed for args.mean_check_length
                 #  3) Run out of generations (happens without this if)
-                if args.variation == 3:
+                if args.variation in [3, 4]:
                     if (record["food"]["max"] == MAX_FOOD or
                         (len(mean_food_history) >= args.mean_check_length and
                             np.std(mean_food_history[-args.mean_check_length:])
@@ -408,7 +428,10 @@ def main(args):
             run_info["population"]   = args.population
             run_info["moves_limit"]  = args.moves
             run_info["sel_tourn_size"]  = args.tournament_size
-            run_info["lambda"] = args.lambda_
+            if args.variation == 1:
+                run_info["lambda"] = 0
+            else:
+                run_info["lambda"] = args.lambda_
             run_info["p_mutate"]     = args.prob_mutate
             run_info["p_crossover"]  = args.prob_crossover
             run_info["weight_min"]   = args.weight_min
