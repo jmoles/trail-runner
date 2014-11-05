@@ -37,18 +37,6 @@ creator.create("Individual", list, fitness=creator.FitnessMulti)
 
 # Some constants
 P_BIT_MUTATE    = 0.05
-# This is tied to values in database.
-SELECTION_MODES = [
-    None,
-    tools.selTournament,
-    tools.selRoulette,
-    tools.selNSGA2,
-    tools.selSPEA2,
-    tools.selRandom,
-    tools.selBest,
-    tools.selWorst,
-    tools.selTournamentDCD,
-]
 
 def mutUniformFloat(individual, low, up, indpb):
     """Mutate an individual by replacing attributes, with probability *indpb*,
@@ -259,10 +247,23 @@ def main(args):
                 # Selection is tournment. Must use argument from user.
                 toolbox.register("select", tools.selTournament,
                     tournsize=args.tournament_size)
+            elif args.selection == 2:
+                toolbox.register("select", tools.selRoulette)
+            elif args.selection == 3:
+                toolbox.register("select", tools.selNSGA2)
+            elif args.selection == 4:
+                toolbox.register("select", tools.selSPEA2)
+            elif args.selection == 5:
+                toolbox.register("select", tools.selRandom)
+            elif args.selection == 6:
+                toolbox.register("select", tools.selBest)
+            elif args.selection == 7:
+                toolbox.register("select", tools.selWorst)
+            elif args.selection == 8:
+                toolbox.register("select", tools.selTournamentDCD)
             else:
-                # Selection is something else.
-                # Indexes start with 1 in Postgres so need to offset by 1 here.
-                toolbox.register("select", SELECTION_MODES[args.selection])
+                logger.critical("Something is wrong with selection method!")
+                sys.exit(10)
 
             # Start a new evolution
             population = toolbox.population(n=args.population)
