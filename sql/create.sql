@@ -262,7 +262,8 @@ INSERT INTO variations (id, name) VALUES
     (1, 'varAnd'),
     (2, 'varOr'),
     (3, 'varOr with smart terminiation'),
-    (4, 'varOr with Smart Term off + pop');
+    (4, 'varOr with Smart Term off + pop'),
+    (5, 'varAnd with Smart Term off + pop');
 
 -- Create Indexes
 -- Table networks index

@@ -136,7 +136,9 @@ class utils:
                 "NSGA2 or SPEA2 selection type!")
                 sys.exit(1)
 
-        if (args.lambda_ is not DEF_ERROR_VAL
-            and args.lambda_ <= args.population):
-            logging.critical("lambda must be greater than population (mu)!")
-            sys.exit(1)
+        if args.variation not in [1, 5]:
+            if (args.lambda_ is not DEF_ERROR_VAL
+                and args.lambda_ <= args.population):
+                logging.critical(
+                    "lambda must be greater than population (mu)!")
+                sys.exit(1)

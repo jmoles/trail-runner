@@ -313,7 +313,7 @@ def main(args):
             # Begin the generational process
             for gen in range(2, args.generations + 1):
                 # Vary the pool of individuals
-                if args.variation == 1:
+                if args.variation in [1, 5]:
                     offspring = algorithms.varAnd(population, toolbox,
                         cxpb=args.prob_crossover, mutpb=args.prob_mutate)
                 elif args.variation in [2, 3, 4]:
@@ -338,7 +338,7 @@ def main(args):
                 # Replace the current population by the offspring
                 if args.variation in [2, 3]:
                     population[:] = toolbox.select(offspring, args.population)
-                elif args.variation in [4]:
+                elif args.variation in [4, 5]:
                     population[:] = toolbox.select(offspring + population,
                         args.population)
                 else:
@@ -394,7 +394,7 @@ def main(args):
                 #  1) All food has been collected.
                 #  2) Mean has not changed for args.mean_check_length
                 #  3) Run out of generations (happens without this if)
-                if args.variation in [3, 4]:
+                if args.variation in [3, 4, 5]:
                     if (record["food"]["max"] == MAX_FOOD or
                         (len(mean_food_history) >= args.mean_check_length and
                             np.std(mean_food_history[-args.mean_check_length:])
@@ -428,7 +428,7 @@ def main(args):
             run_info["population"]   = args.population
             run_info["moves_limit"]  = args.moves
             run_info["sel_tourn_size"]  = args.tournament_size
-            if args.variation == 1:
+            if args.variation in [1, 5]:
                 run_info["lambda"] = 0
             else:
                 run_info["lambda"] = args.lambda_
