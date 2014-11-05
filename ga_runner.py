@@ -395,12 +395,14 @@ def main(args):
                 #  2) Mean has not changed for args.mean_check_length
                 #  3) Run out of generations (happens without this if)
                 if args.variation in [3, 4, 5]:
-                    if (record["food"]["max"] == MAX_FOOD or
-                        (len(mean_food_history) >= args.mean_check_length and
-                            np.std(mean_food_history[-args.mean_check_length:])
-                                < 0.1)):
+                    if (record["food"]["max"] == MAX_FOOD):
                         smart_term_msg = ("Exited at generation {0} because "
-                            "smart termination criteria were met.").format(gen)
+                            "all food was consumed.").format(gen)
+                    elif(len(mean_food_history) >= args.mean_check_length and
+                        (np.std(mean_food_history[-args.mean_check_length:])
+                            < 0.1)):
+                        smart_term_msg = ("Exited at generation {0} because "
+                            "mean check length has been met.").format(gen)
                         break
 
 
