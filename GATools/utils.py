@@ -70,6 +70,9 @@ class utils:
             help="Disables progress bar and prints information to stdout.")
         group.add_argument("-r", "--repeat", type=int, nargs="?",
             default=1, help="Number of times to repeat simulations.")
+        group.add_argument("--no-early-quit",
+            action='store_true',
+            help='Disables automatic or early termination.')
 
         group = parser.add_argument_group('Genetic Algorithm Configuration')
         group.add_argument("-g", "--generations", type=int, nargs="?",

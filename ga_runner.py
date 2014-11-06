@@ -423,7 +423,7 @@ def main(args):
                 #  1) All food has been collected.
                 #  2) Mean has not changed for args.mean_check_length
                 #  3) Run out of generations (happens without this if)
-                if args.variation in [3, 4, 5]:
+                if args.variation in [3, 4, 5] and not args.no_early_quit:
                     if (record["food"]["max"] == MAX_FOOD):
                         smart_term_msg = ("Exited at generation {0} because "
                             "all food was consumed.").format(gen)
