@@ -60,7 +60,7 @@ class TestTrailFunctions(unittest.TestCase):
 
     def test_readTrail(self):
         trail_temp = trail()
-        trail_temp.readTrail(TEST_TRAIL_DB_ID, readTrail)
+        trail_temp.readTrail(TEST_TRAIL_DB_ID, DB_CONFIG_FILE)
 
         self.assertTrue(
             (trail_temp.getMatrix()==TEST_TRAIL).all(),
