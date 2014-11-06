@@ -28,7 +28,7 @@ from GATools.utils import utils
 try:
     import progressbar
 except ImportError:
-    logging.warning("progressbar2 library is not available. " +
+    print ("WARNING: progressbar2 library is not available. " +
         "Try 'pip install progressbar2'")
 
 # Configure DEAP
@@ -245,7 +245,7 @@ def main(args):
                     mu=0,
                     indpb=0.05)
             else:
-                logging.critical("Please selct a valid mutate type!")
+                print "ERROR: Please selct a valid mutate type!"
                 sys.exit(10)
 
             if args.selection == 1:
@@ -267,7 +267,7 @@ def main(args):
             elif args.selection == 8:
                 toolbox.register("select", tools.selTournamentDCD)
             else:
-                logger.critical("Something is wrong with selection method!")
+                print "ERROR: Something is wrong with selection method!"
                 sys.exit(10)
 
             # Start a new evolution
@@ -295,7 +295,8 @@ def main(args):
             # Determine the current generations statistics.
             record = mstats.compile(population)
 
-            logging.debug("Completed generation 1")
+            if args.debug:
+                print "DEBUG: Completed generation 1"
 
             hof_indiv = np.array(tools.selBest(population, k=1)[0])
             hof_array[0] = hof_indiv
@@ -349,7 +350,7 @@ def main(args):
                             del offspring[i].fitness.values
 
                 else:
-                    logging.critical("Something is really wrong! "
+                    print ("ERROR: Something is really wrong! " +
                         "Reached an invalid variation type!")
                     sys.exit(5)
 
@@ -375,24 +376,24 @@ def main(args):
                 # Determine the current generations statistics.
                 record = mstats.compile(population)
 
-                logging.debug(
-                    "Completed generation {0}.".format(gen))
-                logging.debug(
-                    "Food (Min / Max / Avg / Std / Mode): "
-                          "{0} / {1} / {2} / {3} / {4}".format(
-                            record["food"]["min"],
-                            record["food"]["max"],
-                            record["food"]["avg"],
-                            record["food"]["std"],
-                            record["food"]["mode"]))
-                logging.debug(
-                    "Moves (Min / Max / Avg / Std / Mode): "
-                          "{0} / {1} / {2} / {3} / {4}".format(
-                            record["moves"]["min"],
-                            record["moves"]["max"],
-                            record["moves"]["avg"],
-                            record["moves"]["std"],
-                            record["moves"]["mode"]))
+                if args.debug:
+                    print "DEBUG: Completed generation {0}.".format(gen)
+                    print (
+                        "DEBUG: Food (Min / Max / Avg / Std / Mode): "
+                              "{0} / {1} / {2} / {3} / {4}".format(
+                                record["food"]["min"],
+                                record["food"]["max"],
+                                record["food"]["avg"],
+                                record["food"]["std"],
+                                record["food"]["mode"]))
+                    print (
+                        "DEBUG: Moves (Min / Max / Avg / Std / Mode): "
+                              "{0} / {1} / {2} / {3} / {4}".format(
+                                record["moves"]["min"],
+                                record["moves"]["max"],
+                                record["moves"]["avg"],
+                                record["moves"]["std"],
+                                record["moves"]["mode"]))
 
                 hof_indiv = np.array(tools.selBest(population, k=1)[0])
 
@@ -480,14 +481,14 @@ def main(args):
 
             if args.script_mode:
                 if run_id > 0:
-                    logging.info(
+                    print (
                         "Completed repeat {0} with run ID {1}. {2}".format(
                             curr_repeat,
                             run_id,
                             smart_term_msg
                         ))
                 else:
-                    logging.info(
+                    print (
                         "Completed repeat {0} without logging to DB. {1}".format(
                             curr_repeat,
                             smart_term_msg
@@ -503,14 +504,14 @@ def main(args):
     total_time_s = time.time() - run_date
 
     if run_id > 0:
-        logging.info("Final Run ID {0} completed all runs in {1}. {2}".format(
+        print "Final Run ID {0} completed all runs in {1}. {2}".format(
                 run_id,
                 time.strftime('%H:%M:%S', time.gmtime(total_time_s)),
-                smart_term_msg))
+                smart_term_msg)
     else:
-        logging.info("UNLOGGED Run completed in {0}. {1}".format(
+        print "UNLOGGED Run completed in {0}. {1}".format(
                 time.strftime('%H:%M:%S', time.gmtime(total_time_s)),
-                smart_term_msg))
+                smart_term_msg)
 
 
 if __name__ == "__main__":
