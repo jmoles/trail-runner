@@ -29,15 +29,17 @@ AGENT_VAL     = 2
 AGENT_START_X = 4
 AGENT_START_Y = 4
 
+DB_CONFIG_FILE = 'config/config.json'
+
 # TODO: Add a test that checks if maze has been modified by the class after passed in to instant read.
 
 class TestTrailFunctions(unittest.TestCase):
 
     def setUp(self):
         # This class requires accessing the database.
-        self.pgdb  = DBUtils(config_file='config/config.json')
+        self.pgdb  = DBUtils(config_file=DB_CONFIG_FILE)
         self.trail_i = trail()
-        self.trail_i.readTrail(TEST_TRAIL_DB_ID)
+        self.trail_i.readTrail(TEST_TRAIL_DB_ID, DB_CONFIG_FILE)
 
     def test_GridVals(self):
         # Verify that all of the grid values are unique.
@@ -58,7 +60,7 @@ class TestTrailFunctions(unittest.TestCase):
 
     def test_readTrail(self):
         trail_temp = trail()
-        trail_temp.readTrail(TEST_TRAIL_DB_ID)
+        trail_temp.readTrail(TEST_TRAIL_DB_ID, readTrail)
 
         self.assertTrue(
             (trail_temp.getMatrix()==TEST_TRAIL).all(),

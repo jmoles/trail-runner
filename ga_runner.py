@@ -140,7 +140,7 @@ def main(args):
 
     # Get the name of this agent trail for later use
     at = AgentTrail()
-    at.readTrail(args.trail)
+    at.readTrail(args.trail, DB_CONFIG_FILE)
     trail_name = at.getName()
 
     if not args.quiet and not args.debug and not args.script_mode:

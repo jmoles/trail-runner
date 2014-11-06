@@ -48,8 +48,8 @@ class trail:
         self.__moves["none"]    = 0
 
 
-    def readTrail(self, trail_num):
-        pgdb = DBUtils()
+    def readTrail(self, trail_num, db_config_file):
+        pgdb = DBUtils(config_file=db_config_file)
 
         (self.__data_matrix,
         self.__trail_name,
