@@ -37,6 +37,7 @@ creator.create("Individual", list, fitness=creator.FitnessMulti)
 
 # Some constants
 P_BIT_MUTATE    = 0.05
+DB_CONFIG_FILE = "config/config.json"
 
 def mutUniformFloat(individual, low, up, indpb):
     """Mutate an individual by replacing attributes, with probability *indpb*,
@@ -135,7 +136,7 @@ def main(args):
         root.propogate = False
 
     # Set up the database.
-    pgdb = DBUtils(config_file="config/config.json")
+    pgdb = DBUtils(config_file=DB_CONFIG_FILE)
 
     # Get the name of this agent trail for later use
     at = AgentTrail()
@@ -515,5 +516,5 @@ def main(args):
 
 
 if __name__ == "__main__":
-    args = utils.parse_args()
+    args = utils.parse_args(DB_CONFIG_FILE)
     main(args)

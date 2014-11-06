@@ -35,7 +35,7 @@ class TestTrailFunctions(unittest.TestCase):
 
     def setUp(self):
         # This class requires accessing the database.
-        self.pgdb  = DBUtils()
+        self.pgdb  = DBUtils(config_file='config/config.json')
         self.trail_i = trail()
         self.trail_i.readTrail(TEST_TRAIL_DB_ID)
 

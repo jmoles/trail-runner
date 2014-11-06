@@ -7,7 +7,7 @@ class TestDatabaseUtils(unittest.TestCase):
 
     def setUp(self):
         # Test Fixture
-        self.pgdb = DBUtils()
+        self.pgdb = DBUtils(config_file='config/config.json')
 
     def test_getIDs(self):
         # Checks that

@@ -21,9 +21,9 @@ DEF_ERROR_VAL = None
 class utils:
 
     @staticmethod
-    def parse_args():
+    def parse_args(db_config_file):
         # Query the database to gather some items for argument output.
-        pgdb = DBUtils()
+        pgdb = DBUtils(config_file=db_config_file)
         valid_db_opts = pgdb.getIDs()
 
         # Parse the arguments
