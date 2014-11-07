@@ -5,5 +5,7 @@
         "db" : "mydb",
         "password" : "hell0_passw0rd!",
         "port" : 5432
-    }
+    },
+    "url-shorten-key" : "",
+    "base-viewer-url" : "http://www.example.com"
 }

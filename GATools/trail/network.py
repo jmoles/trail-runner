@@ -10,8 +10,9 @@ except:
     import pickle
 
 from ..chemistry import DelayLine
+from ..DBUtils import DBUtils
 
-class network:
+class network(object):
     def __init__(self, debug=False):
         self.__params_length = 0
         self.__chem_network = False
@@ -24,6 +25,12 @@ class network:
     def readNetworkFromFile(self, filename):
         with open(filename, 'r') as f:
             self.network         = pickle.load(f)
+        self.__process_network()
+
+    def read_network_by_id(self, network_id, db_config_file):
+        """ Reads a trail from the database."""
+        pgdb = DBUtils(config_file=db_config_file)
+        self.network = pgdb.getNetworkByID(network_id)
         self.__process_network()
 
     def __process_network(self):

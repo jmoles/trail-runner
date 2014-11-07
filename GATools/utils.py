@@ -145,3 +145,5 @@ class utils:
                 logging.critical(
                     "lambda must be greater than population (mu)!")
                 sys.exit(1)
+
+        print args.no_early_quit

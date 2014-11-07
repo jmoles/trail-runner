@@ -24,7 +24,7 @@ class NetworkNotFound(Exception):
         return repr(self.value)
 
 
-class DBUtils:
+class DBUtils(object):
     def __init__(self, config_file, debug=False):
 
         with open(config_file) as fh:
@@ -272,3 +272,66 @@ class DBUtils:
         ret_net = pickle.load(ret_sio)
 
         return ret_net
+
+
+    def get_elite(self, run_id, generation=None):
+        """ Takes a given run and returns the elite individual at that
+        generation.
+
+        Args:
+            run_id: Run ID to fetch the elite from.
+            generation: Generation to fetch elite from, optional. Defaults
+                           to the last generation is not specified.
+
+        Returns:
+            The elite individual from the specified run as a numpy array.
+
+        """
+        with self.__getCursor() as curs:
+            if generation is None:
+                curs.execute("""SELECT elite
+                    FROM generations
+                    WHERE run_id = %s
+                    AND generation = (
+                        SELECT MAX(generation)
+                        FROM generations
+                        WHERE run_id = %s);
+                    """, (run_id, run_id))
+            else:
+                curs.execute("""SELECT elite
+                    FROM generations
+                    WHERE run_id = %s
+                    AND generation = %s;
+                    """, (run_id, generation))
+
+            result = curs.fetchall()
+
+        return np.array(result[0][0])
+
+
+    def get_run_info(self, run_id):
+        """ Returns the configuration on a given run.
+
+        Args:
+            run_id: Run ID to fetch run information from.
+
+        Returns:
+            A dictionary of the configuration
+        """
+
+        with self.__getCursor() as curs:
+            curs.execute("""SELECT networks_id, trails_id, moves_limit
+                FROM run_config
+                WHERE id = (
+                    SELECT run_config_id
+                    FROM run
+                    WHERE id = %s);
+                """, (run_id, ))
+
+            result = curs.fetchone()
+
+        return {
+            "networks_id" : result[0],
+            "trails_id" : result[1],
+            "moves_limit" : result[2]
+        }
