@@ -216,6 +216,12 @@ ON run_config.mutate_id = mutate.id
 INNER JOIN variations
 ON run_config.variations_id = variations.id;
 
+CREATE OR REPLACE VIEW single_run_bests AS
+SELECT g.run_id, MAX(g.generation) gen_max, 
+       MAX(g.food_max) food_max, MIN(g.moves_min) moves_min
+FROM generations g
+GROUP BY run_id;
+
 -- Add data
 INSERT INTO trails (id, name, moves, init_rot, trail_data) VALUES
         (DEFAULT, 'Sample L Left 5x5', 15, 0, '{{0, 0, 0, 0, 0}, {1, 1, 7, 1, 0}, {0, 0, 0, 1, 0}, {0, 0, 0, 1, 0}, {0, 0, 0, 2, 0}}'),
